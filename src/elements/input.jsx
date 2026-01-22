@@ -51,7 +51,7 @@ export const InputField = forwardRef(function InputField(props, ref) {
             placeholder={placeholder}
             disabled={disabled}
             borderColor={invalid ? "red.500" : undefined}
-            bg="white"
+            className="!bg-white"
             {...rest}
           />
         </InputGroup>
@@ -62,7 +62,7 @@ export const InputField = forwardRef(function InputField(props, ref) {
           placeholder={placeholder}
           disabled={disabled}
           borderColor={invalid ? "red.500" : undefined}
-          bg="white"
+          className="!bg-white"
           {...rest}
         />
       )}

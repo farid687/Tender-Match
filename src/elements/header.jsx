@@ -2,14 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useAuth } from '@/app/auth/context/auth-context'
-import { Button } from '@/elements/button'
+import { useGlobal } from '@/context'
 import { Avatar } from '@/elements/avatar'
-import { Box, HStack, VStack, Text } from '@chakra-ui/react'
-import { LuUser, LuLogOut } from 'react-icons/lu'
+import { Menu } from '@/elements/menu'
+import { Button } from '@/elements/button'
+import { Box, HStack, Text } from '@chakra-ui/react'
+import { LuLogOut, LuUserRound } from 'react-icons/lu'
 
 export function Header() {
-  const { user, signOut } = useAuth()
+  const { user, signOut } = useGlobal()
   const pathname = usePathname()
 
   // Don't show header on auth routes, onboarding route, or when user is not authenticated
@@ -38,50 +39,80 @@ export function Header() {
         <HStack justify="space-between" align="center">
           <Link href="/" className="flex items-center">
           <Box  display="flex" justifyContent="center" alignItems="center">
-              <Box as="img" src="/assets/MTM_Logos.svg" alt="Logo" w="100px" h="80px" />
+              <Box as="img" src="/assets/MTM_Vertical.svg" alt="Logo" w="180px" h="80px" />
             </Box>
           </Link>
           
           <HStack gap={4}>
-            {/* User Info with Avatar */}
-            <HStack gap={3} className="!pr-4 !border-r !border-gray-200">
-              <Avatar
-                name={userName}
-                size="sm"
-                colorPalette="primary"
-              />
-              <VStack gap={0} align="start" className="hidden md:flex">
-                <Text fontSize="sm" fontWeight="semibold" className="!text-gray-900 !font-semibold">
-                  {userName}
-                </Text>
-                <Text fontSize="xs" className="!text-gray-500">
-                  {userEmail}
-                </Text>
-              </VStack>
-            </HStack>
-
-            <HStack gap={3}>
-              <Link href="/profile">
-                <Button
-                  variant="ghost"
-                  size="md"
-                  className="!text-gray-700 hover:!bg-gray-100"
-                >
-                  <LuUser className="!mr-2" />
-                  Profile
-                </Button>
-              </Link>
-              
+            {/* Profile Button */}
+            {/* <Link href="/profile">
               <Button
-                variant="outline"
+                variant="solid"
                 size="md"
-                onClick={signOut}
-                className="!text-gray-700 !border-gray-300 hover:!bg-gray-50"
+                leftIcon={<LuUserRound />}
+               className="!bg-secondary"
+                color="white"
+                _hover={{ bg: 'secondary', opacity: 0.9 }}
               >
-                <LuLogOut className="!mr-2" />
-                Sign Out
+                Profile
               </Button>
-            </HStack>
+            </Link> */}
+            
+            {/* User Menu with Avatar */}
+            <Menu
+              trigger={
+                <Box
+                  as="button"
+                  cursor="pointer"
+                  _hover={{ opacity: 0.8 }}
+                  _focus={{ outline: 'none', boxShadow: 'none', border: 'none' }}
+                  _active={{ outline: 'none', boxShadow: 'none', border: 'none' }}
+                  _focusVisible={{ outline: 'none', boxShadow: 'none', border: 'none' }}
+                  transition="opacity 0.2s"
+                  aria-label="User menu"
+                  border="none !important"
+                  outline="none !important"
+                  bg="transparent"
+                  p={0}
+          
+                >
+                  <Avatar
+                    name={userName}
+                    size="sm"
+                    colorPalette="primary"
+                  />
+                </Box>
+              }
+              items={[
+                {
+                  id: 'user-name',
+                  children: (
+                    <Box>
+                      <Text fontSize="sm" fontWeight="semibold">{userName}</Text>
+                      {userEmail && (
+                        <Text fontSize="xs" color="gray.500" mt="1">{userEmail}</Text>
+                      )}
+                    </Box>
+                  )
+                },
+                { type: 'separator' },
+                {
+                  id: 'profile',
+                  label: 'Profile',
+                  icon: <Box as={LuUserRound} />,
+                  href: '/profile',
+                  color: 'black.600'
+                },
+                { type: 'separator' },
+                {
+                  id: 'sign-out',
+                  label: 'Sign Out',
+                  icon: <Box as={LuLogOut} color="red.600" />,
+                  onClick: signOut,
+                  color: 'red.600'
+                }
+              ]}
+            />
           </HStack>
         </HStack>
       </Box>

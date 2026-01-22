@@ -8,7 +8,6 @@ import { toaster } from '@/elements/toaster'
 import { Button } from '@/elements/button'
 import { IconButton } from '@/elements/icon-button'
 import { InputField } from '@/elements/input'
-import { Checkbox } from '@/elements/checkbox'
 import { SelectField } from '@/elements/select'
 import { MultiSelectField } from '@/elements/multi-select'
 import { SliderField } from '@/elements/slider'
@@ -17,7 +16,7 @@ import { Collapsible } from '@/elements/collapsible'
 import { TabButton } from '@/elements/tab-button'
 import { Box, Text } from '@chakra-ui/react'
 import { LuBuilding2, LuGlobe, LuUserRound, LuBriefcase, LuPlus, LuTrash2, LuSave, LuSettings } from 'react-icons/lu'
-import { clientTypes, contractTypes, contractRangeLabels, valueBandLabels, MAX_PORTFOLIOS } from '../onboarding/variables'
+import { clientTypes, contractTypes, contractRangeLabels, valueBandLabels, MAX_PORTFOLIOS, primaryGoalOptions } from '../onboarding/variables'
 import { Loading, LoadingOverlay } from '@/elements/loading'
 
 export default function ProfilePage() {
@@ -33,16 +32,17 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     // Step 1: Company Information
     region: '',
+    region_interest: [],
     workerSize: '',
     kvk_number: '',
     company_website: '',
     cpvs: [],
-    contract_type: '',
+    contract_type: [],
     contract_range: '0–50k',
 
     // Step 2: Company Details
-    certification: '',
-    primary_goal: '',
+    certification: [],
+    primary_goal: [],
     uea_ready: false,
     match_ready: false,
   })
@@ -55,6 +55,7 @@ export default function ProfilePage() {
       year: '',
       value_band: '0–50k',
       description: '',
+      cpvs: [],
     }
   ])
 
@@ -151,8 +152,20 @@ export default function ProfilePage() {
       }
 
       if (data && data.length > 0) {
-        setPortfolios(data)
-        if (data.length > 0) {
+        const portfoliosWithCpvs = data.map(portfolio => {
+          // Convert year integer to date string if needed
+          let yearValue = portfolio.year
+          if (typeof yearValue === 'number') {
+            yearValue = `${yearValue}-01-01`
+          }
+          return {
+            ...portfolio,
+            year: yearValue || '',
+            cpvs: Array.isArray(portfolio.cpvs) ? portfolio.cpvs : (portfolio.cpvs ? [portfolio.cpvs] : [])
+          }
+        })
+        setPortfolios(portfoliosWithCpvs)
+        if (portfoliosWithCpvs.length > 0) {
           setOpenPortfolioIndex(0)
         }
       } else {
@@ -162,6 +175,7 @@ export default function ProfilePage() {
           year: '',
           value_band: '0–50k',
           description: '',
+          cpvs: [],
         }])
       }
     } catch (error) {
@@ -200,14 +214,15 @@ export default function ProfilePage() {
       setFormData(prev => ({
         ...prev,
         region: company.region || '',
+        region_interest: Array.isArray(company.region_interest) ? company.region_interest : (company.region_interest ? [company.region_interest] : []),
         workerSize: company.worker_size || '',
         kvk_number: company.kvk_number || '',
         company_website: company.company_website || '',
         cpvs: Array.isArray(company.cpvs) ? company.cpvs : [],
-        contract_type: company.contract_type || '',
+        contract_type: Array.isArray(company.contract_type) ? company.contract_type : (company.contract_type ? [company.contract_type] : []),
         contract_range: company.contract_range || '0–50k',
-        certification: company.certification || '',
-        primary_goal: company.primary_goal || '',
+        certification: Array.isArray(company.certification) ? company.certification : (company.certification ? [company.certification] : []),
+        primary_goal: Array.isArray(company.primary_goal) ? company.primary_goal : (company.primary_goal ? [company.primary_goal] : []),
         uea_ready: company.uea_ready || false,
         match_ready: company.match_ready || false,
       }))
@@ -234,10 +249,6 @@ export default function ProfilePage() {
     }
   }
 
-  const handleCertificationChange = (details) => {
-    const certificationId = details.value[0] || ''
-    updateFormData('certification', certificationId)
-  }
 
   const handleMultiSelectChange = (field) => (details) => {
     setFormData(prev => ({ ...prev, [field]: details.value || [] }))
@@ -295,6 +306,7 @@ export default function ProfilePage() {
         year: '',
         value_band: '0–50k',
         description: '',
+        cpvs: [],
         isNew: true,
       }
     ])
@@ -381,9 +393,10 @@ export default function ProfilePage() {
         .update({
           title: portfolioData.title,
           client_type: portfolioData.client_type || null,
-          year: portfolioData.year ? parseInt(portfolioData.year) : null,
+          year: portfolioData.year || null,
           value_band: portfolioData.value_band || null,
           description: portfolioData.description || null,
+          cpvs: Array.isArray(portfolioData.cpvs) && portfolioData.cpvs.length > 0 ? portfolioData.cpvs : null,
         })
         .eq('id', id)
     })
@@ -403,9 +416,10 @@ export default function ProfilePage() {
     const insertPayload = portfoliosToCreate.map(({ isNew, isEdit, isDelete, ...portfolio }) => ({
       title: portfolio.title,
       client_type: portfolio.client_type || null,
-      year: portfolio.year ? parseInt(portfolio.year) : null,
+      year: portfolio.year || null,
       value_band: portfolio.value_band || null,
       description: portfolio.description || null,
+      cpvs: Array.isArray(portfolio.cpvs) && portfolio.cpvs.length > 0 ? portfolio.cpvs : null,
       company_id: companyId,
     }))
 
@@ -428,6 +442,13 @@ export default function ProfilePage() {
       newErrors.region = 'Region is required'
     }
 
+    // Validate KVK number if it exists (must be exactly 8 digits)
+    if (formData.kvk_number && formData.kvk_number.trim() !== '') {
+      if (!/^\d{8}$/.test(formData.kvk_number.trim())) {
+        newErrors.kvk_number = 'KVK number must be exactly 8 digits'
+      }
+    }
+
     if (!formData.workerSize || formData.workerSize.trim() === '') {
       newErrors.workerSize = 'Worker size is required'
     }
@@ -436,7 +457,7 @@ export default function ProfilePage() {
       newErrors.cpvs = 'At least one CPVS category is required'
     }
 
-    if (!formData.contract_type || formData.contract_type.trim() === '') {
+    if (!formData.contract_type || formData.contract_type.length === 0) {
       newErrors.contract_type = 'Contract type is required'
     }
 
@@ -445,7 +466,7 @@ export default function ProfilePage() {
     }
 
     // Validate company details fields
-    if (!formData.primary_goal || formData.primary_goal.trim() === '') {
+    if (!formData.primary_goal || formData.primary_goal.length === 0) {
       newErrors.primary_goal = 'Primary goal is required'
     }
 
@@ -462,14 +483,19 @@ export default function ProfilePage() {
         newPortfolioErrors[`portfolio_${index}_client_type`] = 'Client type is required'
       }
 
-      const yearValue = portfolio.year?.toString().trim() || ''
-      if (!yearValue) {
-        newPortfolioErrors[`portfolio_${index}_year`] = 'Year is required'
+      const dateValue = portfolio.year?.toString().trim() || ''
+      if (!dateValue) {
+        newPortfolioErrors[`portfolio_${index}_year`] = 'Date is required'
       } else {
-        const yearNum = parseInt(yearValue)
-        const currentYear = new Date().getFullYear()
-        if (isNaN(yearNum) || yearNum < 1900 || yearNum > currentYear + 10) {
-          newPortfolioErrors[`portfolio_${index}_year`] = `Year must be between 1900 and ${currentYear + 10}`
+        const selectedDate = new Date(dateValue)
+        const minDate = new Date('1900-01-01')
+        const maxDate = new Date()
+        maxDate.setFullYear(maxDate.getFullYear() + 10)
+        
+        if (isNaN(selectedDate.getTime())) {
+          newPortfolioErrors[`portfolio_${index}_year`] = 'Invalid date format'
+        } else if (selectedDate < minDate || selectedDate > maxDate) {
+          newPortfolioErrors[`portfolio_${index}_year`] = `Date must be between 1900 and ${maxDate.getFullYear()}`
         }
       }
 
@@ -528,12 +554,13 @@ export default function ProfilePage() {
       
       const companyUpdateData = {
         region: formData.region || null,
-        certification: formData.certification || null,
+        region_interest: Array.isArray(formData.region_interest) && formData.region_interest.length > 0 ? formData.region_interest : null,
+        certification: Array.isArray(formData.certification) && formData.certification.length > 0 ? formData.certification : null,
         cpvs: Array.isArray(formData.cpvs) && formData.cpvs.length > 0 ? formData.cpvs : null,
         worker_size: formData.workerSize || null,
-        contract_type: formData.contract_type || null,
+        contract_type: Array.isArray(formData.contract_type) && formData.contract_type.length > 0 ? formData.contract_type : null,
         contract_range: formData.contract_range || null,
-        primary_goal: formData.primary_goal || null,
+        primary_goal: Array.isArray(formData.primary_goal) && formData.primary_goal.length > 0 ? formData.primary_goal : null,
         company_website: formData.company_website || null,
         match_ready: formData.match_ready || false,
         // Note: kvk_number and uea_ready are NOT updated here as they are disabled
@@ -588,7 +615,7 @@ export default function ProfilePage() {
           <div className="space-y-5 animate-in fade-in duration-300">
             <div className="!space-y-5">
             {/* Basic Information Card */}
-            <div className="rounded-xl border-mixin !p-5" style={{ '--border-width': '1px', '--border-color': '#efefef', background: '#fafafa' }}>
+            <div className="rounded-xl border-mixin !p-5 " style={{ '--border-width': '1px', '--border-color': '#efefef', background: '#fafafa' }}>
               <h3 className="text-xs !font-semibold !mb-4 uppercase tracking-wide" style={{ color: '#333333' }}>Basic Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -607,18 +634,26 @@ export default function ProfilePage() {
                 <div className="relative">
                   <InputField
                     label="KVK Number"
-                    placeholder="Enter your KVK number"
+                    placeholder="8-digit KVK number"
                     value={formData.kvk_number}
                     disabled={true}
                     helperText="KVK number cannot be updated through profile settings"
                     className="opacity-60 cursor-not-allowed"
+                    invalid={!!errors.kvk_number}
+                    errorText={errors.kvk_number}
                   />
-                  <div className="absolute top-0 right-0 !mt-6 !mr-3">
-                    <div className="!bg-gray-100 !text-gray-500 text-xs !px-2 !py-1 rounded-md !font-medium">
-                      Read Only
-                    </div>
-                  </div>
+                
                 </div>
+              </div>
+              
+              <div className="mt-4">
+                <MultiSelectField
+                  label="Regions of Interest"
+                  items={regions}
+                  placeholder="Select regions of interest"
+                  value={formData.region_interest}
+                  onValueChange={handleMultiSelectChange('region_interest')}
+                />
               </div>
             </div>
 
@@ -721,12 +756,12 @@ export default function ProfilePage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <SelectField
+                    <MultiSelectField
                       label="Contract Type"
                       items={contractTypes}
                       placeholder="Select contract type"
-                      value={formData.contract_type ? [formData.contract_type] : []}
-                      onValueChange={handleSelectChange('contract_type')}
+                      value={formData.contract_type}
+                      onValueChange={handleMultiSelectChange('contract_type')}
                       required
                       invalid={!!errors.contract_type}
                       errorText={errors.contract_type}
@@ -778,43 +813,24 @@ export default function ProfilePage() {
             <div className="rounded-xl border-mixin !p-5" style={{ '--border-width': '1px', '--border-color': '#efefef', background: '#fafafa' }}>
               <h3 className="text-xs !font-semibold !mb-4 uppercase tracking-wide" style={{ color: '#333333' }}>Certification & Goals</h3>
               <div className="!space-y-4">
-                <SelectField
+                <MultiSelectField
                   label="Certification"
                   items={certifications}
                   placeholder="Select certification"
-                  value={formData.certification ? [formData.certification] : []}
-                  onValueChange={handleCertificationChange}
+                  value={formData.certification}
+                  onValueChange={handleMultiSelectChange('certification')}
                 />
 
-                <Box>
-                  <Text fontWeight="medium" fontSize="sm" mb="4">
-                    What's your main goal?
-                    <Text as="span" color="red.500" ml="1">*</Text>
-                  </Text>
-                  <div className={`flex flex-col gap-2 rounded-lg !p-3 border-mixin ${errors.primary_goal ? '!border-red-500' : ''}`} style={{ '--border-width': errors.primary_goal ? '2px' : '1px', '--border-color': errors.primary_goal ? '#ef4444' : '#efefef', background: '#ffffff' }}>
-                    {[
-                      { id: 'find_tenders', label: 'Find tenders' },
-                      { id: 'find_partners', label: 'Find partners' },
-                      { id: 'both', label: 'Both' }
-                    ].map((option) => (
-                      <Checkbox
-                        key={option.id}
-                        checked={formData.primary_goal === option.id}
-                        onCheckedChange={(details) => {
-                          if (details.checked) {
-                            updateFormData('primary_goal', option.id)
-                          }
-                        }}
-                        className="cursor-pointer hover:!bg-white/50 !p-2 rounded-lg transition-colors"
-                      >
-                        <span className="!text-sm !font-medium text-black">{option.label}</span>
-                      </Checkbox>
-                    ))}
-                  </div>
-                  {errors.primary_goal && (
-                    <Text fontSize="xs" color="red.500" mt="1">{errors.primary_goal}</Text>
-                  )}
-                </Box>
+                <MultiSelectField
+                  label="What's your main goal?"
+                  items={primaryGoalOptions}
+                  placeholder="Select your goals"
+                  value={formData.primary_goal}
+                  onValueChange={handleMultiSelectChange('primary_goal')}
+                  required
+                  invalid={!!errors.primary_goal}
+                  errorText={errors.primary_goal}
+                />
               </div>
             </div>
 
@@ -831,11 +847,7 @@ export default function ProfilePage() {
                       helperText="UEA Ready status cannot be updated through profile settings"
                     />
                   </Box>
-                  <div className="absolute top-0 right-0 !mt-0">
-                    <div className="!bg-gray-100 !text-gray-500 text-xs !px-2 !py-1 rounded-md !font-medium">
-                      Read Only
-                    </div>
-                  </div>
+                 
                 </div>
                 <Toggle
                   label="Match Ready"
@@ -943,18 +955,15 @@ export default function ProfilePage() {
 
                     <div>
                       <InputField
-                        label="Year"
-                        type="number"
-                        placeholder="e.g., 2014, 1999"
-                        value={portfolio.year}
+                        label="Date"
+                        type="date"
+                        placeholder="Select date"
+                        value={portfolio.year || ''}
                         onChange={(e) => {
-                          const value = e.target.value
-                          if (value === '' || (value.length <= 4 && /^\d+$/.test(value))) {
-                            updatePortfolio(index, 'year', value)
-                          }
+                          updatePortfolio(index, 'year', e.target.value)
                         }}
-                        min="1900"
-                        max={new Date().getFullYear() + 10}
+                        min="1900-01-01"
+                        max={`${new Date().getFullYear() + 10}-12-31`}
                         required
                         invalid={!!portfolioErrors[`portfolio_${index}_year`]}
                         errorText={portfolioErrors[`portfolio_${index}_year`]}
@@ -976,6 +985,16 @@ export default function ProfilePage() {
                       {portfolioErrors[`portfolio_${index}_value_band`] && (
                         <Text fontSize="xs" color="red.500" mt="1">{portfolioErrors[`portfolio_${index}_value_band`]}</Text>
                       )}
+                    </div>
+
+                    <div>
+                      <MultiSelectField
+                        label="CPVS Categories"
+                        items={cpvs}
+                        placeholder="Select CPVS categories for this project"
+                        value={portfolio.cpvs || []}
+                        onValueChange={(details) => updatePortfolio(index, 'cpvs', details.value || [])}
+                      />
                     </div>
 
                     <InputField
@@ -1004,18 +1023,15 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen !bg-gradient-to-br !from-off-white !to-light-gray !p-4 md:!p-6 relative overflow-hidden flex items-center justify-center">
-      {/* Decorative background elements - using theme colors */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-3xl" style={{ backgroundColor: 'rgba(31, 106, 225, 0.05)' }}></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full blur-3xl" style={{ backgroundColor: 'rgba(107, 78, 255, 0.05)' }}></div>
-      </div>
+    <div className="min-h-screen h-auto !py-8 !bg-gradient-to-br !from-off-white !to-light-gray !p-2 relative overflow-hidden flex justify-center">
+     
+     
 
-      <div className="w-full max-w-5xl mx-auto relative z-10">
+      <div className="w-full max-w-7xl !px-8 mx-auto relative z-10">
         {/* Compact Header Section */}
         <div className="!mb-6 text-start animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex items-center justify-start gap-3 !mb-3">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg, #1f6ae1, #6b4eff)' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg, #1f6ae1, #6b4eff)' }}>
               <LuSettings className="w-6 h-6 text-white" />
             </div>
             <h1 className="text-3xl md:text-4xl !font-bold" style={{ color: '#1c1c1c' }}>
@@ -1031,7 +1047,7 @@ export default function ProfilePage() {
         <div className="bg-white rounded-2xl shadow-lg border-mixin overflow-hidden relative" style={{ '--border-width': '1px', '--border-color': '#efefef' }}>
           {isSubmitting && <LoadingOverlay message="Saving changes..." />}
           {/* Tab Header - using theme colors */}
-          <div className="border-b border-mixin !px-5 !pt-4 !pb-0" style={{ '--border-width': '1px', '--border-color': '#efefef', background: 'linear-gradient(to right, rgba(31, 106, 225, 0.03), rgba(107, 78, 255, 0.03))' }}>
+          <div className="border-b border-mixin !px-5 !pt-4 !pb-0 !bg-white" style={{ '--border-width': '1px', '--border-color': '#efefef',  }}>
             <TabButton
               tabs={tabs}
               value={activeTab}

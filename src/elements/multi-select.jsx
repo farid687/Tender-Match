@@ -98,7 +98,7 @@ export const MultiSelectField = React.forwardRef((props, ref) => {
         {selectedItems.length > 0 && (
           <Wrap gap="2" mt={"1"}>
             {selectedItems.map((item) => (
-              <Badge key={itemToValue(item)} size="sm" variant="solid" className="!bg-white !text-black border-mixin shadow-md" style={{ '--border-width': '1px', '--border-color': '#1f6ae1' }}>
+              <Badge key={itemToValue(item)}  variant="solid" py={"1"} className="!bg-white !text-black border-mixin shadow-md " style={{ '--border-width': '1px', '--border-color': '#1f6ae1' }}>
                 {item?.name || itemToString(item)}
               </Badge>
             ))}

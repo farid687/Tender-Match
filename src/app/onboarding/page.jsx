@@ -9,7 +9,6 @@ import { toaster } from '@/elements/toaster'
 import { Button } from '@/elements/button'
 import { IconButton } from '@/elements/icon-button'
 import { InputField } from '@/elements/input'
-import { Checkbox } from '@/elements/checkbox'
 import { SelectField } from '@/elements/select'
 import { MultiSelectField } from '@/elements/multi-select'
 import { SliderField } from '@/elements/slider'
@@ -17,7 +16,7 @@ import { Toggle } from '@/elements/toggle'
 import { Collapsible } from '@/elements/collapsible'
 import { Box, Text } from '@chakra-ui/react'
 import { LuBuilding2, LuGlobe, LuArrowRight, LuArrowLeft, LuCheck, LuUserRound, LuBriefcase, LuPlus, LuTrash2, LuForward } from 'react-icons/lu'
-import { clientTypes, contractTypes, contractRangeLabels, valueBandLabels, MAX_PORTFOLIOS } from './variables'
+import { clientTypes, contractTypes, contractRangeLabels, valueBandLabels, MAX_PORTFOLIOS, primaryGoalOptions } from './variables'
 import { Loading, LoadingOverlay } from '@/elements/loading'
 
 const steps = [
@@ -57,16 +56,17 @@ export default function OnboardingPage() {
   const [formData, setFormData] = useState({
     // Step 1: Company Information
     region: '',
+    region_interest: [],
     workerSize: '',
     kvk_number: '',
     company_website: '',
     cpvs: [],
-    contract_type: '',
+    contract_type: [],
     contract_range: '0–50k',
 
     // Step 2: Company Details
-    certification: '',
-    primary_goal: '',
+    certification: [],
+    primary_goal: [],
     uea_ready: false,
     match_ready: false,
   })
@@ -79,6 +79,7 @@ export default function OnboardingPage() {
       year: '',
       value_band: '0–50k',
       description: '',
+      cpvs: [],
     }
   ])
 
@@ -175,7 +176,11 @@ export default function OnboardingPage() {
       }
 
       if (data && data.length > 0) {
-        setPortfolios(data)
+        const portfoliosWithCpvs = data.map(portfolio => ({
+          ...portfolio,
+          cpvs: Array.isArray(portfolio.cpvs) ? portfolio.cpvs : (portfolio.cpvs ? [portfolio.cpvs] : [])
+        }))
+        setPortfolios(portfoliosWithCpvs)
       }
     } catch (error) {
       console.error('Exception fetching portfolio data:', error)
@@ -213,14 +218,15 @@ export default function OnboardingPage() {
       setFormData(prev => ({
         ...prev,
         region: company.region || '',
+        region_interest: Array.isArray(company.region_interest) ? company.region_interest : (company.region_interest ? [company.region_interest] : []),
         workerSize: company.worker_size || '',
         kvk_number: company.kvk_number || '',
         company_website: company.company_website || '',
         cpvs: Array.isArray(company.cpvs) ? company.cpvs : [],
-        contract_type: company.contract_type || '',
+        contract_type: Array.isArray(company.contract_type) ? company.contract_type : (company.contract_type ? [company.contract_type] : []),
         contract_range: company.contract_range || '0–50k',
-        certification: company.certification || '',
-        primary_goal: company.primary_goal || '',
+        certification: Array.isArray(company.certification) ? company.certification : (company.certification ? [company.certification] : []),
+        primary_goal: Array.isArray(company.primary_goal) ? company.primary_goal : (company.primary_goal ? [company.primary_goal] : []),
         uea_ready: company.uea_ready || false,
         match_ready: company.match_ready || false,
       }))
@@ -247,10 +253,6 @@ export default function OnboardingPage() {
     }
   }
 
-  const handleCertificationChange = (details) => {
-    const certificationId = details.value[0] || ''
-    updateFormData('certification', certificationId)
-  }
 
   const handleMultiSelectChange = (field) => (details) => {
     setFormData(prev => ({ ...prev, [field]: details.value || [] }))
@@ -309,6 +311,7 @@ export default function OnboardingPage() {
         year: '',
         value_band: '0–50k',
         description: '',
+        cpvs: [],
         isNew: true,
       }
     ])
@@ -374,6 +377,8 @@ export default function OnboardingPage() {
     
     if (!formData.kvk_number || formData.kvk_number.trim() === '') {
       newErrors.kvk_number = 'KVK number is required'
+    } else if (!/^\d{8}$/.test(formData.kvk_number.trim())) {
+      newErrors.kvk_number = 'KVK number must be exactly 8 digits'
     }
     
     if (!formData.workerSize || formData.workerSize.trim() === '') {
@@ -384,7 +389,7 @@ export default function OnboardingPage() {
       newErrors.cpvs = 'At least one CPVS category is required'
     }
     
-    if (!formData.contract_type || formData.contract_type.trim() === '') {
+    if (!formData.contract_type || formData.contract_type.length === 0) {
       newErrors.contract_type = 'Contract type is required'
     }
     
@@ -399,7 +404,7 @@ export default function OnboardingPage() {
   const validateStep2 = () => {
     const newErrors = {}
     
-    if (!formData.primary_goal || formData.primary_goal.trim() === '') {
+    if (!formData.primary_goal || formData.primary_goal.length === 0) {
       newErrors.primary_goal = 'Primary goal is required'
     }
     
@@ -419,14 +424,19 @@ export default function OnboardingPage() {
         newPortfolioErrors[`portfolio_${index}_client_type`] = 'Client type is required'
       }
       
-      const yearValue = portfolio.year?.toString().trim() || ''
-      if (!yearValue) {
-        newPortfolioErrors[`portfolio_${index}_year`] = 'Year is required'
+      const dateValue = portfolio.year?.toString().trim() || ''
+      if (!dateValue) {
+        newPortfolioErrors[`portfolio_${index}_year`] = 'Date is required'
       } else {
-        const yearNum = parseInt(yearValue)
-        const currentYear = new Date().getFullYear()
-        if (isNaN(yearNum) || yearNum < 1900 || yearNum > currentYear + 10) {
-          newPortfolioErrors[`portfolio_${index}_year`] = `Year must be between 1900 and ${currentYear + 10}`
+        const selectedDate = new Date(dateValue)
+        const minDate = new Date('1900-01-01')
+        const maxDate = new Date()
+        maxDate.setFullYear(maxDate.getFullYear() + 10)
+        
+        if (isNaN(selectedDate.getTime())) {
+          newPortfolioErrors[`portfolio_${index}_year`] = 'Invalid date format'
+        } else if (selectedDate < minDate || selectedDate > maxDate) {
+          newPortfolioErrors[`portfolio_${index}_year`] = `Date must be between 1900 and ${maxDate.getFullYear()}`
         }
       }
       
@@ -478,9 +488,10 @@ export default function OnboardingPage() {
     const insertPayload = portfoliosToCreate.map(({ isNew, ...portfolio }) => ({
       title: portfolio.title,
       client_type: portfolio.client_type || null,
-      year: portfolio.year ? parseInt(portfolio.year) : null,
+      year: portfolio.year || null,
       value_band: portfolio.value_band || null,
       description: portfolio.description || null,
+      cpvs: Array.isArray(portfolio.cpvs) && portfolio.cpvs.length > 0 ? portfolio.cpvs : null,
       company_id: companyId,
     }))
 
@@ -539,17 +550,17 @@ export default function OnboardingPage() {
       const companyUpdateData = {
         is_onboarded: true,
         region: formData.region || null,
-        certification: formData.certification || null,
+        region_interest: Array.isArray(formData.region_interest) && formData.region_interest.length > 0 ? formData.region_interest : null,
+        certification: Array.isArray(formData.certification) && formData.certification.length > 0 ? formData.certification : null,
         cpvs: Array.isArray(formData.cpvs) && formData.cpvs.length > 0 ? formData.cpvs : null,
         kvk_number: formData.kvk_number || null,
         worker_size: formData.workerSize || null,
-        contract_type: formData.contract_type || null,
+        contract_type: Array.isArray(formData.contract_type) && formData.contract_type.length > 0 ? formData.contract_type : null,
         contract_range: formData.contract_range || null,
-        primary_goal: formData.primary_goal || null,
+        primary_goal: Array.isArray(formData.primary_goal) && formData.primary_goal.length > 0 ? formData.primary_goal : null,
         company_website: formData.company_website || null,
         uea_ready: formData.uea_ready || false,
         match_ready: formData.match_ready || false,
-        portfolio: user?.company_id, // Set portfolio field to company_id as per requirement
       }
 
       // Update company table - wait for this to complete
@@ -739,14 +750,28 @@ export default function OnboardingPage() {
                         <div>
                           <InputField
                             label="KVK Number"
-                            placeholder="Enter your KVK number"
+                            placeholder="Enter 8-digit KVK number"
                             value={formData.kvk_number}
-                            onChange={(e) => updateFormData('kvk_number', e.target.value)}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, '').slice(0, 8)
+                              updateFormData('kvk_number', value)
+                            }}
                             required
                             invalid={!!errors.kvk_number}
                             errorText={errors.kvk_number}
+                            maxLength={8}
                           />
                         </div>
+                      </div>
+                      
+                      <div className="mt-3">
+                        <MultiSelectField
+                          label="Regions of Interest"
+                          items={regions}
+                          placeholder="Select regions of interest"
+                          value={formData.region_interest}
+                          onValueChange={handleMultiSelectChange('region_interest')}
+                        />
                       </div>
                     </div>
 
@@ -849,12 +874,12 @@ export default function OnboardingPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
-                            <SelectField
+                            <MultiSelectField
                               label="Contract Type"
                               items={contractTypes}
                               placeholder="Select contract type"
-                              value={formData.contract_type ? [formData.contract_type] : []}
-                              onValueChange={handleSelectChange('contract_type')}
+                              value={formData.contract_type}
+                              onValueChange={handleMultiSelectChange('contract_type')}
                               required
                               invalid={!!errors.contract_type}
                               errorText={errors.contract_type}
@@ -911,47 +936,28 @@ export default function OnboardingPage() {
                       <h3 className="text-xs !font-semibold !mb-3 uppercase tracking-wide !text-dark-gray">Certification & Goals</h3>
                       <div className="!space-y-3">
                         <Box>
-                          <SelectField
+                          <MultiSelectField
                             label="Certification"
                             items={certifications}
                             placeholder="Select certification"
-                            value={formData.certification ? [formData.certification] : []}
-                            onValueChange={handleCertificationChange}
+                            value={formData.certification}
+                            onValueChange={handleMultiSelectChange('certification')}
                           />
                           <Text fontSize="xs" color="gray.500" mt="1">
                             Select your company certification or equivalent qualification
                           </Text>
                         </Box>
 
-                        <Box>
-                          <Text fontWeight="medium" fontSize="sm" mb="3">
-                            What's your main goal?
-                            <Text as="span" color="red.500" ml="1">*</Text>
-                          </Text>
-                          <div className={`flex flex-col gap-2 rounded-lg !p-2 border-mixin !bg-white ${errors.primary_goal ? '!border-red-500' : ''}`} style={{ '--border-width': errors.primary_goal ? '2px' : '1px', '--border-color': errors.primary_goal ? '#ef4444' : '#efefef' }}>
-                            {[
-                              { id: 'find_tenders', label: 'Find tenders' },
-                              { id: 'find_partners', label: 'Find partners' },
-                              { id: 'both', label: 'Both' }
-                            ].map((option) => (
-                              <Checkbox
-                                key={option.id}
-                                checked={formData.primary_goal === option.id}
-                                onCheckedChange={(details) => {
-                                  if (details.checked) {
-                                    updateFormData('primary_goal', option.id)
-                                  }
-                                }}
-                                className="cursor-pointer hover:!bg-white/50 !p-2 rounded-lg transition-colors"
-                              >
-                                <span className="!text-sm !font-medium text-black">{option.label}</span>
-                              </Checkbox>
-                            ))}
-                          </div>
-                          {errors.primary_goal && (
-                            <Text fontSize="xs" color="red.500" mt="1">{errors.primary_goal}</Text>
-                          )}
-                        </Box>
+                        <MultiSelectField
+                          label="What's your main goal?"
+                          items={primaryGoalOptions}
+                          placeholder="Select your goals"
+                          value={formData.primary_goal}
+                          onValueChange={handleMultiSelectChange('primary_goal')}
+                          required
+                          invalid={!!errors.primary_goal}
+                          errorText={errors.primary_goal}
+                        />
                       </div>
                     </div>
 
@@ -1070,18 +1076,15 @@ export default function OnboardingPage() {
 
                               <div>
                                 <InputField
-                                  label="Year"
-                                  type="number"
-                                  placeholder="e.g., 2014, 1999"
-                                  value={portfolio.year}
+                                  label="Date"
+                                  type="date"
+                                  placeholder="Select date"
+                                  value={portfolio.year || ''}
                                   onChange={(e) => {
-                                    const value = e.target.value
-                                    if (value === '' || (value.length <= 4 && /^\d+$/.test(value))) {
-                                      updatePortfolio(index, 'year', value)
-                                    }
+                                    updatePortfolio(index, 'year', e.target.value)
                                   }}
-                                  min="1900"
-                                  max={new Date().getFullYear() + 10}
+                                  min="1900-01-01"
+                                  max={`${new Date().getFullYear() + 10}-12-31`}
                                   required
                                   invalid={!!portfolioErrors[`portfolio_${index}_year`]}
                                   errorText={portfolioErrors[`portfolio_${index}_year`]}
@@ -1103,6 +1106,16 @@ export default function OnboardingPage() {
                                 {portfolioErrors[`portfolio_${index}_value_band`] && (
                                   <Text fontSize="xs" color="red.500" mt="1">{portfolioErrors[`portfolio_${index}_value_band`]}</Text>
                                 )}
+                              </div>
+
+                              <div>
+                                <MultiSelectField
+                                  label="CPVS Categories"
+                                  items={cpvs}
+                                  placeholder="Select CPVS categories for this project"
+                                  value={portfolio.cpvs || []}
+                                  onValueChange={(details) => updatePortfolio(index, 'cpvs', details.value || [])}
+                                />
                               </div>
 
                               <InputField
