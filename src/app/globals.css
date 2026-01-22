@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/* Custom theme colors */
+@theme {
+  --color-primary: #1f6ae1;
+  --color-secondary: #6b4eff;
+  --color-black: #1c1c1c;
+  --color-white: #ffffff;
+  --color-off-white: #f7f7f7;
+  --color-gray: #efefef;
+  --color-dark-gray: #333333;
+  --color-light-gray: #f5f5f5;
+  --color-very-light-gray: #fafafa;
+  --color-red: #ff0000;
+  --color-green: #00ff00;
+  --color-success: #4CBB17;
+  --color-yellow: #ffff00;
+  --color-anchor: #6b4eff;
+
+}
+
+/* Single mixin function for border - accepts width and color via CSS variables */
+@layer utilities {
+  .border-mixin {
+    border-width: var(--border-width, 1px) !important;
+    border-style: solid !important;
+    border-color: var(--border-color, currentColor) !important;
+  }
+}
+
