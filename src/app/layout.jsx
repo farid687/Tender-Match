@@ -1,7 +1,6 @@
 
 import { Toaster } from "@/elements/toaster";
 import { Provider } from "../elements/provider";
-import { Header } from "../elements/header";
 import "./globals.css";
 
 export const metadata = {
@@ -14,7 +13,6 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body cz-shortcut-listen="true"  >
         <Provider>
-          <Header />
           {children}
           <Toaster />
         </Provider>

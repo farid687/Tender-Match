@@ -43,6 +43,9 @@ export const MultiSelectField = React.forwardRef((props, ref) => {
     })
   }, [items, inputValue, itemToString])
 
+  // Get groupBy function from props
+  const { groupBy, ...comboboxProps } = rest
+
   // Create collection with filtered items
   const collection = React.useMemo(
     () =>
@@ -50,8 +53,9 @@ export const MultiSelectField = React.forwardRef((props, ref) => {
         items: filteredItems,
         itemToString,
         itemToValue,
+        ...(groupBy && { groupBy }),
       }),
-    [filteredItems, itemToString, itemToValue]
+    [filteredItems, itemToString, itemToValue, groupBy]
   )
 
   const handleInputChange = React.useCallback((details) => {
@@ -85,7 +89,7 @@ export const MultiSelectField = React.forwardRef((props, ref) => {
         onValueChange={onValueChange}
         onInputValueChange={handleInputChange}
         disabled={disabled}
-        {...rest}
+        {...comboboxProps}
       >
         <Combobox.Control bg="white" borderColor={invalid ? "red.500" : undefined}>
           <Combobox.Input placeholder={selectedItems.length === 0 ? placeholder : 'Search...'} bg="white" />
@@ -108,15 +112,32 @@ export const MultiSelectField = React.forwardRef((props, ref) => {
         <Portal>
           <Combobox.Positioner>
             <Combobox.Content>
-              <Combobox.ItemGroup>
-                {collection?.items?.map((item) => (
-                  <Combobox.Item item={item} key={item.id || item.value}>
-                    {item?.name || itemToString(item)}
-                    <Combobox.ItemIndicator />
-                  </Combobox.Item>
-                ))}
-                <Combobox.Empty>No results found</Combobox.Empty>
-              </Combobox.ItemGroup>
+              {groupBy && collection.group ? (
+                <>
+                  {collection.group().map(([category, items]) => (
+                    <Combobox.ItemGroup key={category}>
+                      <Combobox.ItemGroupLabel>{category}</Combobox.ItemGroupLabel>
+                      {items.map((item) => (
+                        <Combobox.Item item={item} key={item.id || item.value}>
+                          {item?.name || itemToString(item)}
+                          <Combobox.ItemIndicator />
+                        </Combobox.Item>
+                      ))}
+                    </Combobox.ItemGroup>
+                  ))}
+                  <Combobox.Empty>No results found</Combobox.Empty>
+                </>
+              ) : (
+                <Combobox.ItemGroup>
+                  {collection?.items?.map((item) => (
+                    <Combobox.Item item={item} key={item.id || item.value}>
+                      {item?.name || itemToString(item)}
+                      <Combobox.ItemIndicator />
+                    </Combobox.Item>
+                  ))}
+                  <Combobox.Empty>No results found</Combobox.Empty>
+                </Combobox.ItemGroup>
+              )}
             </Combobox.Content>
           </Combobox.Positioner>
         </Portal>

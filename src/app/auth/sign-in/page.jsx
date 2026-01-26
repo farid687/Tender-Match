@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Heading, Text, VStack } from "@chakra-ui/react";
+import { Box, Heading, Text, VStack, HStack } from "@chakra-ui/react";
 import { InputField } from "@/elements/input";
 import { Button } from "@/elements/button";
 import { useRouter } from "next/navigation";
@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 export default function SignInPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
-const auth= useAuth();
+  const auth = useAuth();
   const router = useRouter();
   const { company } = useAuth();
 
@@ -25,9 +25,9 @@ const auth= useAuth();
       await auth.signIn(form.email, form.password);
       toaster.create({ title: "Signed in successfully", description: "Welcome back!", type: "success" });
       if (company?.is_onboarded) {
-        router.push("/");
+        router.push("/app/profile");
       } else {
-        router.push("/onboarding");
+        router.push("/app/onboarding");
       }
     } catch (error) {
       toaster.create({ title: "Sign in failed", description: error.message, type: "error" });
@@ -37,51 +37,194 @@ const auth= useAuth();
   };
 
   return (
-    <Box minH="100vh" display="flex" alignItems="center" justifyContent="center" bg="bg.subtle" px="4">
-      <Box w="full" maxW="400px" bg="bg" p="8" borderRadius="xl" boxShadow="lg">
-        <VStack gap="6" align="stretch">
-          <Box textAlign="center">
-            <Box  display="flex" justifyContent="center" alignItems="center">
-              <Box as="img" src="/assets/MTM_Logos.svg" alt="Logo" w="100px" h="100px" />
+    <Box 
+      minH="100vh" 
+      display="flex" 
+      alignItems="center" 
+      justifyContent="center" 
+      px="4"
+      py="8"
+      style={{
+        background: "linear-gradient(135deg, #f7f7f7 0%, #efefef 50%, #fafafa 100%)",
+        position: "relative"
+      }}
+    >
+      {/* Decorative background elements */}
+      <Box
+        position="absolute"
+        top="10%"
+        left="10%"
+        w="300px"
+        h="300px"
+        borderRadius="full"
+        style={{
+          background: "linear-gradient(135deg, rgba(31, 106, 225, 0.1) 0%, rgba(107, 78, 255, 0.1) 100%)",
+          filter: "blur(80px)",
+          zIndex: 0
+        }}
+      />
+      <Box
+        position="absolute"
+        bottom="10%"
+        right="10%"
+        w="250px"
+        h="250px"
+        borderRadius="full"
+        style={{
+          background: "linear-gradient(135deg, rgba(107, 78, 255, 0.1) 0%, rgba(31, 106, 225, 0.1) 100%)",
+          filter: "blur(80px)",
+          zIndex: 0
+        }}
+      />
+
+      <Box 
+        w="full" 
+        maxW="480px" 
+        position="relative"
+        zIndex={1}
+      >
+        <Box
+          bg="white"
+          p={{ base: "8", md: "10" }}
+          borderRadius="2xl"
+          boxShadow="0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)"
+          style={{
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <VStack gap="8" align="stretch">
+            {/* Logo and Header */}
+            <Box textAlign="center">
+              <Box 
+                display="flex" 
+                justifyContent="center" 
+                alignItems="center" 
+                mb="6"
+              >
+                <Box 
+                  as="img" 
+                  src="/assets/MTM_Logos.svg" 
+                  alt="Logo" 
+                  w="120px" 
+                  h="120px"
+                  style={{ filter: "drop-shadow(0 4px 12px rgba(31, 106, 225, 0.15))" }}
+                />
+              </Box>
+              <Heading 
+                size="2xl" 
+                mb="2"
+                fontWeight="700"
+                style={{ 
+                  background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text"
+                }}
+              >
+                Welcome Back
+              </Heading>
+              <Text 
+                fontSize="md" 
+                color="#666"
+                fontWeight="400"
+              >
+                Sign in to continue to your account
+              </Text>
             </Box>
-            <Heading size="xl" mb="2">Welcome Back</Heading>
-            <Text color="fg.muted">Sign in to your account</Text>
-          </Box>
 
-          <form onSubmit={handleSubmit}>
-            <VStack gap="4" align="stretch">
-              <InputField
-                label="Email"
-                name="email"
-                type="email"
-                placeholder="Enter your email"
-                value={form.email}
-                onChange={handleChange}
-                required
-              />
-              <InputField
-                label="Password"
-                name="password"
-                type="password"
-                placeholder="Enter your password"
-                value={form.password}
-                onChange={handleChange}
-                required
-              />
-              <Link href="/auth/reset-password" className="text-sm !text-anchor text-right hover:underline block">
-                Forgot password?
-              </Link>
-              <Button type="submit" w="full" loading={loading} loadingText="Signing in..." className="!bg-primary !text-white hover:!bg-primary/90">
-                Sign In
-              </Button>
-            </VStack>
-          </form>
+            {/* Form */}
+            <form onSubmit={handleSubmit}>
+              <VStack gap="5" align="stretch">
+                <InputField
+                  label="Email Address"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                />
+                <Box>
+                  <InputField
+                    label="Password"
+                    name="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={form.password}
+                    onChange={handleChange}
+                    required
+                  />
+                  <HStack justify="flex-end" mt="2">
+                    <Link 
+                      href="/auth/reset-password" 
+                      className="text-sm font-medium"
+                      style={{ 
+                        color: "#6b4eff",
+                        textDecoration: "none",
+                        transition: "all 0.2s"
+                      }}
+                      onMouseEnter={(e) => e.target.style.textDecoration = "underline"}
+                      onMouseLeave={(e) => e.target.style.textDecoration = "none"}
+                    >
+                      Forgot password?
+                    </Link>
+                  </HStack>
+                </Box>
+                
+                <Button 
+                  type="submit" 
+                  w="full" 
+                  loading={loading} 
+                  loadingText="Signing in..."
+                  size="lg"
+                  style={{
+                    background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
+                    color: "white",
+                    fontWeight: "600",
+                    padding: "14px 24px",
+                    borderRadius: "12px",
+                    transition: "all 0.3s ease",
+                    boxShadow: "0 4px 14px rgba(31, 106, 225, 0.3)"
+                  }}
+                  _hover={{
+                    transform: "translateY(-2px)",
+                    boxShadow: "0 6px 20px rgba(31, 106, 225, 0.4)"
+                  }}
+                  _active={{
+                    transform: "translateY(0)"
+                  }}
+                >
+                  Sign In
+                </Button>
+              </VStack>
+            </form>
 
-          <Text textAlign="center" fontSize="sm">
-            Don't have an account?{" "}
-<Link href="/auth/register" className="!text-anchor hover:underline">Register</Link>
-          </Text>
-        </VStack>
+            {/* Footer */}
+            <Box 
+              textAlign="center" 
+              pt="4"
+              borderTop="1px solid"
+              borderColor="#efefef"
+            >
+              <Text fontSize="sm" color="#666">
+                Don't have an account?{" "}
+                <Link 
+                  href="/auth/register" 
+                  className="font-semibold"
+                  style={{ 
+                    color: "#6b4eff",
+                    textDecoration: "none",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => e.target.style.textDecoration = "underline"}
+                  onMouseLeave={(e) => e.target.style.textDecoration = "none"}
+                >
+                  Create an account
+                </Link>
+              </Text>
+            </Box>
+          </VStack>
+        </Box>
       </Box>
     </Box>
   );

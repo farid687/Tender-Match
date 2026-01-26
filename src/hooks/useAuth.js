@@ -25,7 +25,7 @@ export const useAuth = () => {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/onboarding`,
+        emailRedirectTo: `${window.location.origin}/app/onboarding`,
         data: {
           first_name: metadata.first_name,
           last_name: metadata.last_name,

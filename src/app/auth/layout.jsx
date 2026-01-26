@@ -1,10 +1,5 @@
-import { Box } from "@chakra-ui/react";
+import AuthLayout from "@/layouts/AuthLayout";
 
-
-export default function AuthLayout({ children }) {
-  return (
-    <Box minH="100vh" bg="bg.subtle">
-      {children}
-    </Box>
-  );
+export default function AuthLayoutWrapper({ children }) {
+  return <AuthLayout>{children}</AuthLayout>;
 }
