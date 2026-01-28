@@ -1396,16 +1396,21 @@ export default function OnboardingPage() {
                             </Box>
                           )}
                         </Box>
-                        <MultiSelectField
-                          label="What's your main goal?"
-                          items={primaryGoalOptions}
-                          placeholder="Select your goals"
-                          value={formData.primary_goal}
-                          onValueChange={handleMultiSelectChange('primary_goal')}
-                          required
-                          invalid={!!errors.primary_goal}
-                          errorText={errors.primary_goal}
-                        />
+                        <Box>
+                          <MultiSelectField
+                            label="What's your main goal?"
+                            items={primaryGoalOptions}
+                            placeholder="Select your goals"
+                            value={formData.primary_goal}
+                            onValueChange={handleMultiSelectChange('primary_goal')}
+                            required
+                            invalid={!!errors.primary_goal}
+                            errorText={errors.primary_goal}
+                          />
+                          <Text fontSize="xs" color="#666" mt="1">
+                            This helps us tailor matches, recommendations, and your dashboard
+                          </Text>
+                        </Box>
                         <SelectField
                           label="Which tenders do you usually target?"
                           items={targetTendersOptions}
@@ -1481,10 +1486,7 @@ export default function OnboardingPage() {
                       </Text>
                       <Box mt="2" p="4" borderRadius="lg" bg="#f0f7ff" borderWidth="1px" borderColor="#b3d9ff">
                         <Text fontSize="sm" color="#1e3a5f" fontWeight="500" lineHeight="1.6">
-                          <Text as="span" fontWeight="600" display="block" mb="1">Portfolio projects are used to assess whether your organization meets experience and capability requirements commonly requested in public tenders.</Text>
-                          <Text as="span" fontSize="xs" opacity={0.9}>
-                            This information is used for assessing relevant experience and checking alignment with tender eligibility and reference requirements. You can add or update your portfolio projects later.
-                          </Text>
+                          Portfolio projects are used to assess whether your organization meets experience and capability requirements commonly requested in public tenders.
                         </Text>
                       </Box>
                     </Box>

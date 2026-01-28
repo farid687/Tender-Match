@@ -17,9 +17,10 @@
 
   // Primary Goal options
   export const primaryGoalOptions = [
-    { id: 'find_tenders', name: 'Find tenders' },
-    { id: 'find_partners', name: 'Find partners' },
-    { id: 'both', name: 'Both' }
+    { id: 'bid_independently', name: 'Find relevant tenders to bid independently' },
+    { id: 'joint_bids', name: 'Find partners for joint bids (consortia / combinations)' },
+    { id: 'subcontractor', name: 'Participate as a subcontractor' },
+    { id: 'both', name: 'Explore both tenders and partnership opportunities' }
   ]
 
   // Target Tenders options

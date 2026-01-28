@@ -2,7 +2,6 @@
  * Validation utility functions for authentication forms
  */
 
-
 export const validateEmail = (email) => {
   if (!email || email.trim() === '') {
     return { valid: false, error: 'Email is required' };

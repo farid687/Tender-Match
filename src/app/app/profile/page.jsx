@@ -910,16 +910,21 @@ export default function ProfilePage() {
                     Certification cannot be updated through profile settings
                   </Text>
                 </Box>
-                <MultiSelectField
-                  label="What's your main goal?"
-                  items={primaryGoalOptions}
-                  placeholder="Select your goals"
-                  value={formData.primary_goal}
-                  onValueChange={handleMultiSelectChange('primary_goal')}
-                  required
-                  invalid={!!errors.primary_goal}
-                  errorText={errors.primary_goal}
-                />
+                <Box>
+                  <MultiSelectField
+                    label="What's your main goal?"
+                    items={primaryGoalOptions}
+                    placeholder="Select your goals"
+                    value={formData.primary_goal}
+                    onValueChange={handleMultiSelectChange('primary_goal')}
+                    required
+                    invalid={!!errors.primary_goal}
+                    errorText={errors.primary_goal}
+                  />
+                  <Text fontSize="xs" color="#666" mt="1">
+                    This helps us tailor matches, recommendations, and your dashboard
+                  </Text>
+                </Box>
                 <SelectField
                   label="Which tenders do you usually target?"
                   items={targetTendersOptions}
@@ -992,14 +997,11 @@ export default function ProfilePage() {
                     ({portfolios.filter(p => !p.isDelete).length} of {MAX_PORTFOLIOS})
                   </Text>
                 </Heading>
-                <Text fontSize="sm" color="#666" mb="3">
-                  Document your relevant experience and capabilities for tender eligibility assessment
-                </Text>
-                <Box p="3" borderRadius="lg" bg="#f0f7ff" borderWidth="1px" borderColor="#b3d9ff" mb="4">
+                {/* <Box p="3" borderRadius="lg" bg="#f0f7ff" borderWidth="1px" borderColor="#b3d9ff" mb="4">
                   <Text fontSize="xs" color="#1e3a5f" fontWeight="500" lineHeight="1.5">
                     Portfolio projects are used to assess whether your organization meets experience and capability requirements commonly requested in public tenders.
                   </Text>
-                </Box>
+                </Box> */}
               </Box>
               <IconButton
                 type="button"
