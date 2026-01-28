@@ -8,18 +8,36 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toaster } from "@/elements/toaster";
 import { useAuth } from "@/hooks/useAuth";
+import { validateSignIn } from "@/utils/validation";
 
 export default function SignInPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
   const auth = useAuth();
   const router = useRouter();
   const { company } = useAuth();
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: null });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form before making API call
+    const validation = validateSignIn(form);
+    if (!validation.valid) {
+      setErrors(validation.errors);
+      return;
+    }
+
+    setErrors({});
     setLoading(true);
     try {
       await auth.signIn(form.email, form.password);
@@ -114,7 +132,7 @@ export default function SignInPage() {
                 size="2xl" 
                 mb="2"
                 fontWeight="700"
-                style={{ 
+                style={{
                   background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
@@ -143,6 +161,8 @@ export default function SignInPage() {
                   value={form.email}
                   onChange={handleChange}
                   required
+                  invalid={!!errors.email}
+                  errorText={errors.email}
                 />
                 <Box>
                   <InputField
@@ -153,11 +173,13 @@ export default function SignInPage() {
                     value={form.password}
                     onChange={handleChange}
                     required
+                    invalid={!!errors.password}
+                    errorText={errors.password}
                   />
                   <HStack justify="flex-end" mt="2">
                     <Link 
                       href="/auth/reset-password" 
-                      className="text-sm font-medium"
+                      className="text-sm font-medium hover:underline transition-all"
                       style={{ 
                         color: "#6b4eff",
                         textDecoration: "none",
@@ -181,7 +203,7 @@ export default function SignInPage() {
                     background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
                     color: "white",
                     fontWeight: "600",
-                    padding: "14px 24px",
+                    padding: "12px 24px",
                     borderRadius: "12px",
                     transition: "all 0.3s ease",
                     boxShadow: "0 4px 14px rgba(31, 106, 225, 0.3)"

@@ -8,28 +8,38 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { toaster } from "@/elements/toaster";
 import { passwordStrength } from "check-password-strength";
+import { validateUpdatePassword } from "@/utils/validation";
 
 export default function UpdatePasswordPage() {
   const [form, setForm] = useState({ password: "", confirmPassword: "" });
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
   const auth = useAuth();
   const router = useRouter();
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: null });
+    }
+  };
 
   const strength = form.password ? passwordStrength(form.password) : null;
   const strengthColors = { "Too weak": "red.500", Weak: "orange.500", Medium: "yellow.500", Strong: "green.500" };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.password !== form.confirmPassword) {
-      toaster.create({ title: "Passwords do not match", type: "error" });
+    
+    // Validate form before making API call
+    const validation = validateUpdatePassword(form, strength);
+    if (!validation.valid) {
+      setErrors(validation.errors);
       return;
     }
-    if (strength?.value === "Too weak") {
-      toaster.create({ title: "Password is too weak", type: "error" });
-      return;
-    }
+
+    setErrors({});
     setLoading(true);
     try {
       await auth.updatePassword(form.password);
@@ -133,6 +143,8 @@ export default function UpdatePasswordPage() {
                     value={form.password}
                     onChange={handleChange}
                     required
+                    invalid={!!errors.password}
+                    errorText={errors.password}
                   />
                   {strength && (
                     <Box mt="3">
@@ -173,8 +185,8 @@ export default function UpdatePasswordPage() {
                   value={form.confirmPassword}
                   onChange={handleChange}
                   required
-                  invalid={form.confirmPassword && form.password !== form.confirmPassword}
-                  errorText="Passwords do not match"
+                  invalid={!!errors.confirmPassword || (form.confirmPassword && form.password !== form.confirmPassword)}
+                  errorText={errors.confirmPassword || (form.confirmPassword && form.password !== form.confirmPassword ? "Passwords do not match" : null)}
                 />
                 <Button 
                   type="submit" 

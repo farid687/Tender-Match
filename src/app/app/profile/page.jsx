@@ -14,6 +14,7 @@ import { SliderField } from '@/elements/slider'
 import { Toggle } from '@/elements/toggle'
 import { Collapsible } from '@/elements/collapsible'
 import { TabButton } from '@/elements/tab-button'
+import { YearPicker } from '@/elements/year-picker'
 import { Box, Text, Heading, VStack, HStack } from '@chakra-ui/react'
 import { LuBuilding2, LuGlobe, LuUserRound, LuBriefcase, LuPlus, LuTrash2, LuSave, LuSettings, LuLock } from 'react-icons/lu'
 import { passwordStrength } from 'check-password-strength'
@@ -162,10 +163,13 @@ export default function ProfilePage() {
 
       if (data && data.length > 0) {
         const portfoliosWithCpvs = data.map(portfolio => {
-          // Convert year integer to date string if needed
+          // Handle year - convert to string if number, or keep as string
           let yearValue = portfolio.year
           if (typeof yearValue === 'number') {
-            yearValue = `${yearValue}-01-01`
+            yearValue = yearValue.toString()
+          } else if (typeof yearValue === 'string' && yearValue.includes('-')) {
+            // If it's a date string, extract just the year
+            yearValue = new Date(yearValue).getFullYear().toString()
           }
           return {
             ...portfolio,
@@ -493,19 +497,18 @@ export default function ProfilePage() {
         newPortfolioErrors[`portfolio_${index}_client_type`] = 'Client type is required'
       }
 
-      const dateValue = portfolio.year?.toString().trim() || ''
-      if (!dateValue) {
-        newPortfolioErrors[`portfolio_${index}_year`] = 'Date is required'
+      const yearValue = portfolio.year?.toString().trim() || ''
+      if (!yearValue) {
+        newPortfolioErrors[`portfolio_${index}_year`] = 'Year is required'
       } else {
-        const selectedDate = new Date(dateValue)
-        const minDate = new Date('1900-01-01')
-        const maxDate = new Date()
-        maxDate.setFullYear(maxDate.getFullYear() + 10)
+        const year = parseInt(yearValue, 10)
+        const minYear = 1900
+        const maxYear = new Date().getFullYear() + 10
         
-        if (isNaN(selectedDate.getTime())) {
-          newPortfolioErrors[`portfolio_${index}_year`] = 'Invalid date format'
-        } else if (selectedDate < minDate || selectedDate > maxDate) {
-          newPortfolioErrors[`portfolio_${index}_year`] = `Date must be between 1900 and ${maxDate.getFullYear()}`
+        if (isNaN(year)) {
+          newPortfolioErrors[`portfolio_${index}_year`] = 'Invalid year format'
+        } else if (year < minYear || year > maxYear) {
+          newPortfolioErrors[`portfolio_${index}_year`] = `Year must be between ${minYear} and ${maxYear}`
         }
       }
 
@@ -976,7 +979,7 @@ export default function ProfilePage() {
                   display="flex"
                   alignItems="center"
                   gap="2"
-                 
+                  mb="2"
                   style={{
                     background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
                     WebkitBackgroundClip: "text",
@@ -984,11 +987,19 @@ export default function ProfilePage() {
                     backgroundClip: "text"
                   }}
                 >
-                  Showcase your best work
+                  Portfolio Projects
                   <Text as="span" fontWeight="600" color="#1f6ae1">
                     ({portfolios.filter(p => !p.isDelete).length} of {MAX_PORTFOLIOS})
                   </Text>
                 </Heading>
+                <Text fontSize="sm" color="#666" mb="3">
+                  Document your relevant experience and capabilities for tender eligibility assessment
+                </Text>
+                <Box p="3" borderRadius="lg" bg="#f0f7ff" borderWidth="1px" borderColor="#b3d9ff" mb="4">
+                  <Text fontSize="xs" color="#1e3a5f" fontWeight="500" lineHeight="1.5">
+                    Portfolio projects are used to assess whether your organization meets experience and capability requirements commonly requested in public tenders.
+                  </Text>
+                </Box>
               </Box>
               <IconButton
                 type="button"
@@ -1021,46 +1032,62 @@ export default function ProfilePage() {
                 .map(({ portfolio, index }, displayIndex) => (
                   <Box
                     key={portfolio.id || index}
-                    borderRadius="xl"
+                    borderRadius="lg"
                     overflow="hidden"
                     transition="all 0.2s"
-                    bg={openPortfolioIndex === index ? "#fafafa" : "white"}
-                    borderWidth="1px"
+                    bg={openPortfolioIndex === index ? "#ffffff" : "#fafafa"}
+                    borderWidth="2px"
                     borderStyle="solid"
-                    borderColor={openPortfolioIndex === index ? "#1f6ae1" : "#efefef"}
+                    borderColor={openPortfolioIndex === index ? "#1f6ae1" : "#e5e7eb"}
+                    boxShadow={openPortfolioIndex === index ? "0 4px 16px rgba(31, 106, 225, 0.12)" : "0 1px 3px rgba(0, 0, 0, 0.05)"}
                     _hover={{
-                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)"
+                      boxShadow: "0 6px 20px rgba(0, 0, 0, 0.1)",
+                      borderColor: openPortfolioIndex === index ? "#1f6ae1" : "#d1d5db"
                     }}
                   >
                     <Collapsible
-                      title={`Portfolio Project ${displayIndex + 1}`}
+                      title={
+                        <HStack gap="2" alignItems="center">
+                          <Box
+                            w="32px"
+                            h="32px"
+                            borderRadius="md"
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                            bg={openPortfolioIndex === index ? "rgba(31, 106, 225, 0.1)" : "rgba(107, 114, 128, 0.1)"}
+                          >
+                            <LuBriefcase style={{ width: "16px", height: "16px", color: openPortfolioIndex === index ? "#1f6ae1" : "#6b7280" }} />
+                          </Box>
+                          <Text fontSize="md" fontWeight="600" color={openPortfolioIndex === index ? "#1f6ae1" : "#374151"}>
+                            {portfolio.title || `Project ${displayIndex + 1}`}
+                          </Text>
+                          {portfolio.client_type && (
+                            <Text fontSize="xs" color="#6b7280" fontWeight="500">
+                              • {portfolio.client_type}
+                            </Text>
+                          )}
+                          {portfolio.year && (
+                            <Text fontSize="xs" color="#6b7280">
+                              • {portfolio.year}
+                            </Text>
+                          )}
+                        </HStack>
+                      }
                       open={openPortfolioIndex === index}
                       onOpenChange={() => handlePortfolioToggle(index)}
                       className="border-0"
                     >
-                      <Box p="4" pt="2">
-                        <Box display="flex" alignItems="center" justifyContent="space-between" mb="3" pb="2">
-                          <Box display="flex" alignItems="center" gap="2">
-                            <Box
-                              w="24px"
-                              h="24px"
-                              borderRadius="md"
-                              display="flex"
-                              alignItems="center"
-                              justifyContent="center"
-                              bg="rgba(31, 106, 225, 0.1)"
-                            >
-                              <LuBriefcase style={{ width: "12px", height: "12px", color: "#1f6ae1" }} />
-                            </Box>
-                            <Text fontSize="sm" fontWeight="600" color="#333">
-                              Project Details
-                            </Text>
-                          </Box>
+                      <Box p="6" pt="4" bg="white">
+                        <Box display="flex" alignItems="center" justifyContent="space-between" mb="4" pb="3" borderBottomWidth="1px" borderBottomColor="#e5e7eb">
+                          <Text fontSize="sm" fontWeight="600" color="#374151" textTransform="uppercase" letterSpacing="wide">
+                            Project Information
+                          </Text>
                           {portfolios.filter(p => !p.isDelete).length > 1 && (
                             <IconButton
                               type="button"
                               variant="ghost"
-                              size="xs"
+                              size="sm"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 removePortfolio(index)
@@ -1072,72 +1099,85 @@ export default function ProfilePage() {
                             </IconButton>
                           )}
                         </Box>
-                        <VStack gap="4" align="stretch">
-                          <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
-                            <InputField
-                              label="Title"
-                              placeholder="Enter project title"
-                              value={portfolio.title}
-                              onChange={(e) => updatePortfolio(index, 'title', e.target.value)}
-                              required
-                              invalid={!!portfolioErrors[`portfolio_${index}_title`]}
-                              errorText={portfolioErrors[`portfolio_${index}_title`]}
-                            />
-                            <SelectField
-                              label="Client Type"
-                              items={clientTypes}
-                              placeholder="Select client type"
-                              value={portfolio.client_type ? [portfolio.client_type] : []}
-                              onValueChange={(details) => updatePortfolio(index, 'client_type', details.value[0] || '')}
-                              required
-                              invalid={!!portfolioErrors[`portfolio_${index}_client_type`]}
-                              errorText={portfolioErrors[`portfolio_${index}_client_type`]}
-                            />
-                          </Box>
-                          <InputField
-                            label="Date"
-                            type="date"
-                            placeholder="Select date"
-                            value={portfolio.year || ''}
-                            onChange={(e) => {
-                              updatePortfolio(index, 'year', e.target.value)
-                            }}
-                            min="1900-01-01"
-                            max={`${new Date().getFullYear() + 10}-12-31`}
-                            required
-                            invalid={!!portfolioErrors[`portfolio_${index}_year`]}
-                            errorText={portfolioErrors[`portfolio_${index}_year`]}
-                          />
+                        <VStack gap="5" align="stretch">
                           <Box>
-                            <SliderField
-                              label="Project value range"
-                              value={getValueBandIndex(portfolio.value_band)}
-                              onChange={(value) => updatePortfolio(index, 'value_band', valueBandLabels[value] || valueBandLabels[0])}
-                              min={0}
-                              max={3}
-                              step={1}
-                              required
-                              maxW="100%"
-                              formatValue={formatValueBand}
-                            />
-                            {portfolioErrors[`portfolio_${index}_value_band`] && (
-                              <Text fontSize="xs" color="red.500" mt="1">{portfolioErrors[`portfolio_${index}_value_band`]}</Text>
-                            )}
+                            <Text fontSize="xs" fontWeight="600" mb="3" textTransform="uppercase" letterSpacing="wide" color="#6b7280">
+                              Basic Information
+                            </Text>
+                            <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
+                              <InputField
+                                label="Project title"
+                                placeholder="Enter project title"
+                                value={portfolio.title}
+                                onChange={(e) => updatePortfolio(index, 'title', e.target.value)}
+                                required
+                                invalid={!!portfolioErrors[`portfolio_${index}_title`]}
+                                errorText={portfolioErrors[`portfolio_${index}_title`]}
+                              />
+                              <SelectField
+                                label="Client type"
+                                items={clientTypes}
+                                placeholder="Select client type"
+                                value={portfolio.client_type ? [portfolio.client_type] : []}
+                                onValueChange={(details) => updatePortfolio(index, 'client_type', details.value[0] || '')}
+                                required
+                                invalid={!!portfolioErrors[`portfolio_${index}_client_type`]}
+                                errorText={portfolioErrors[`portfolio_${index}_client_type`]}
+                              />
+                            </Box>
                           </Box>
-                          <MultiSelectField
-                            label="CPVS Categories"
-                            items={cpvs}
-                            placeholder="Select CPVS categories for this project"
-                            value={portfolio.cpvs || []}
-                            onValueChange={(details) => updatePortfolio(index, 'cpvs', details.value || [])}
-                          />
-                          <InputField
-                            label="Relevant experience description"
-                            placeholder="Enter relevant experience description"
-                            value={portfolio.description}
-                            onChange={(e) => updatePortfolio(index, 'description', e.target.value)}
-                            helperText="Briefly describe the scope and activities of this project, focusing on aspects relevant for tender experience and eligibility"
-                          />
+                          <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
+                            <YearPicker
+                              label="Project year"
+                              placeholder="Select year"
+                              value={portfolio.year || ''}
+                              onChange={(e) => {
+                                updatePortfolio(index, 'year', e.target.value)
+                              }}
+                              min={1900}
+                              max={new Date().getFullYear() + 10}
+                              required
+                              invalid={!!portfolioErrors[`portfolio_${index}_year`]}
+                              errorText={portfolioErrors[`portfolio_${index}_year`]}
+                            />
+                            <Box>
+                              <SliderField
+                                label="Project value range"
+                                value={getValueBandIndex(portfolio.value_band)}
+                                onChange={(value) => updatePortfolio(index, 'value_band', valueBandLabels[value] || valueBandLabels[0])}
+                                min={0}
+                                max={3}
+                                step={1}
+                                required
+                                maxW="100%"
+                                formatValue={formatValueBand}
+                              />
+                              {portfolioErrors[`portfolio_${index}_value_band`] && (
+                                <Text fontSize="xs" color="red.500" mt="1">{portfolioErrors[`portfolio_${index}_value_band`]}</Text>
+                              )}
+                            </Box>
+                          </Box>
+                          <Box>
+                            <Text fontSize="xs" fontWeight="600" mb="3" textTransform="uppercase" letterSpacing="wide" color="#6b7280">
+                              Project Details
+                            </Text>
+                            <VStack gap="4" align="stretch">
+                              <MultiSelectField
+                                label="CPV categories"
+                                items={cpvs}
+                                placeholder="Select CPV categories for this project"
+                                value={portfolio.cpvs || []}
+                                onValueChange={(details) => updatePortfolio(index, 'cpvs', details.value || [])}
+                              />
+                              <InputField
+                                label="Project description"
+                                placeholder="Describe the project scope, deliverables, and relevant experience"
+                                value={portfolio.description}
+                                onChange={(e) => updatePortfolio(index, 'description', e.target.value)}
+                                helperText="Focus on aspects that demonstrate your organization's experience and capabilities relevant to public tender requirements"
+                              />
+                            </VStack>
+                          </Box>
                         </VStack>
                       </Box>
                     </Collapsible>

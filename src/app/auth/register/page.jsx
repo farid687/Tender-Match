@@ -12,6 +12,7 @@ import { toaster } from "@/elements/toaster";
 import { passwordStrength } from "check-password-strength";
 import { countries, strengthColors } from "../variables";
 import { useAuth } from "@/hooks/useAuth";
+import { validateRegister } from "@/utils/validation";
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ 
@@ -24,10 +25,18 @@ export default function RegisterPage() {
     country: "nl"
   });
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
   const auth = useAuth();
   const router = useRouter();
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: null });
+    }
+  };
   
   const handleCountryChange = (details) => {
     setForm({ ...form, country: details.value[0] || "" });
@@ -37,19 +46,15 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Validate required fields
-    if (!form.first_name || !form.last_name || !form.company_name || !form.email || !form.password || !form.confirm_password || !form.country) {
-      toaster.create({ title: "Please fill in all required fields", type: "error" });
+    
+    // Validate form before making API call
+    const validation = validateRegister(form, strength);
+    if (!validation.valid) {
+      setErrors(validation.errors);
       return;
     }
-    if (form.password !== form.confirm_password) {
-      toaster.create({ title: "Passwords do not match", type: "error" });
-      return;
-    }
-    if (strength?.value === "Too weak") {
-      toaster.create({ title: "Password is too weak", type: "error" });
-      return;
-    }
+
+    setErrors({});
     setLoading(true);
     try {
       await auth.signUp(form.email, form.password, {
@@ -175,6 +180,8 @@ export default function RegisterPage() {
                     value={form.first_name}
                     onChange={handleChange}
                     required
+                    invalid={!!errors.first_name}
+                    errorText={errors.first_name}
                   />
                   <InputField
                     label="Last Name"
@@ -183,6 +190,8 @@ export default function RegisterPage() {
                     value={form.last_name}
                     onChange={handleChange}
                     required
+                    invalid={!!errors.last_name}
+                    errorText={errors.last_name}
                   />
                 </Box>
                 <InputField
@@ -192,6 +201,8 @@ export default function RegisterPage() {
                   value={form.company_name}
                   onChange={handleChange}
                   required
+                  invalid={!!errors.company_name}
+                  errorText={errors.company_name}
                 />
                 <InputField
                   label="Email Address"
@@ -201,6 +212,8 @@ export default function RegisterPage() {
                   value={form.email}
                   onChange={handleChange}
                   required
+                  invalid={!!errors.email}
+                  errorText={errors.email}
                 />
                 <Box>
                   <InputField
@@ -211,6 +224,8 @@ export default function RegisterPage() {
                     value={form.password}
                     onChange={handleChange}
                     required
+                    invalid={!!errors.password}
+                    errorText={errors.password}
                   />
                   {strength && (
                     <HStack mt="1.5" gap="2" align="center">
@@ -249,8 +264,8 @@ export default function RegisterPage() {
                   value={form.confirm_password}
                   onChange={handleChange}
                   required
-                  invalid={form.confirm_password && form.password !== form.confirm_password}
-                  errorText="Passwords do not match"
+                  invalid={!!errors.confirm_password || (form.confirm_password && form.password !== form.confirm_password)}
+                  errorText={errors.confirm_password || (form.confirm_password && form.password !== form.confirm_password ? "Passwords do not match" : null)}
                 />
                 <SelectField
                   label="Country"

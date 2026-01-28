@@ -8,6 +8,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toaster } from "@/elements/toaster";
 import { LuMail, LuCheckCircle } from "react-icons/lu";
+import { validateEmail } from "@/utils/validation";
 
 function VerifyEmailContent() {
   const [loading, setLoading] = useState(false);
@@ -21,6 +22,13 @@ function VerifyEmailContent() {
       toaster.create({ title: "Email not found", type: "error" });
       return;
     }
+    
+    // Validate email format before making API call
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      return;
+    }
+    
     setLoading(true);
     try {
       await auth.resendVerificationEmail(email);

@@ -8,17 +8,35 @@ import Link from "next/link";
 import { toaster } from "@/elements/toaster";
 import { LuArrowLeft, LuMail } from "react-icons/lu";
 import { useAuth } from "@/hooks/useAuth";
+import { validateResetPassword } from "@/utils/validation";
 
 export default function ResetPasswordPage() {
   const [form, setForm] = useState({ email: "" });
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [errors, setErrors] = useState({});
   const auth = useAuth();
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: null });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form before making API call
+    const validation = validateResetPassword(form);
+    if (!validation.valid) {
+      setErrors(validation.errors);
+      return;
+    }
+
+    setErrors({});
     setLoading(true);
     try {
       await auth.resetPassword(form.email);
@@ -269,6 +287,8 @@ export default function ResetPasswordPage() {
                   value={form.email}
                   onChange={handleChange}
                   required
+                  invalid={!!errors.email}
+                  errorText={errors.email}
                 />
                 <Button 
                   type="submit" 
