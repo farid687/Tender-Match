@@ -9,6 +9,7 @@ import { toaster } from '@/elements/toaster'
 import { Button } from '@/elements/button'
 import { IconButton } from '@/elements/icon-button'
 import { InputField } from '@/elements/input'
+import { TextareaField } from '@/elements/textarea'
 import { SelectField } from '@/elements/select'
 import { MultiSelectField } from '@/elements/multi-select'
 import { SliderField } from '@/elements/slider'
@@ -19,7 +20,7 @@ import { Box, Text, Heading, VStack, HStack } from '@chakra-ui/react'
 import { LuBuilding2, LuGlobe, LuArrowRight, LuArrowLeft, LuCheck, LuUserRound, LuBriefcase, LuPlus, LuTrash2, LuForward } from 'react-icons/lu'
 import { BsExclamationCircle } from 'react-icons/bs'
 import { Tooltip } from '@/elements/tooltip'
-import { clientTypes, contractTypes, contractRangeLabels, valueBandLabels, MAX_PORTFOLIOS, primaryGoalOptions, targetTendersOptions } from './variables'
+import { clientTypes, contractTypes, MAX_PORTFOLIOS, primaryGoalOptions, targetTendersOptions, formatCurrency, parseContractRange, formatContractRange, formatValueBand } from './variables'
 import { Loading, LoadingOverlay } from '@/elements/loading'
 
 const steps = [
@@ -67,12 +68,13 @@ export default function OnboardingPage() {
     company_website: '',
     cpvs: [],
     contract_type: [],
-    contract_range: '€50k – €250k',
+    contract_range: 50000,
 
     // Step 2: Company Details
     primary_goal: [],
     target_tenders: '',
-    uea_ready: false,
+    mandatory_exclusion: false,
+    discretionary_exclusion: false,
     match_ready: false,
   })
 
@@ -82,7 +84,7 @@ export default function OnboardingPage() {
       title: '',
       client_type: '',
       year: '',
-      value_band: '€50k – €250k',
+      value_band: 50000,
       description: '',
       cpvs: [],
     }
@@ -221,7 +223,8 @@ export default function OnboardingPage() {
       if (data && data.length > 0) {
         const portfoliosWithCpvs = data.map(portfolio => ({
           ...portfolio,
-          cpvs: Array.isArray(portfolio.cpvs) ? portfolio.cpvs : (portfolio.cpvs ? [portfolio.cpvs] : [])
+          cpvs: Array.isArray(portfolio.cpvs) ? portfolio.cpvs : (portfolio.cpvs ? [portfolio.cpvs] : []),
+          value_band: typeof portfolio.value_band === 'number' ? portfolio.value_band : parseContractRange(portfolio.value_band)
         }))
         setPortfolios(portfoliosWithCpvs)
       }
@@ -247,25 +250,7 @@ export default function OnboardingPage() {
     loadInitialData()
   }, [supabase])
 
-  // Fetch company certifications when company is available
-  // These are loaded for display only - they won't be updated/deleted during onboarding
-  // useEffect(() => {
-  //   const loadCompanyCertifications = async () => {
-  //     if (user?.company_id) {
-  //       const companyCerts = await fetchCompanyCertifications(user.company_id)
-  //       // Mark existing certifications so we know not to update/delete them
-  //       const existingCerts = companyCerts.map(cert => ({
-  //         ...cert,
-  //         isExisting: true // Flag to indicate this is from database
-  //       }))
-  //       setCompanyCertifications(existingCerts)
-  //     }
-  //   }
-  //   if (user?.company_id) {
-  //     loadCompanyCertifications()
-  //   }
-  // }, [user?.company_id])
-
+ 
 
 
   // Fetch company data when user is available
@@ -289,11 +274,12 @@ export default function OnboardingPage() {
         company_website: company.company_website || '',
         cpvs: Array.isArray(company.cpvs) ? company.cpvs : [],
         contract_type: Array.isArray(company.contract_type) ? company.contract_type : (company.contract_type ? [company.contract_type] : []),
-        contract_range: company.contract_range || '€50k – €250k',
+        contract_range: company.contract_range ? parseContractRange(company.contract_range) : 50000,
         // Certifications are loaded separately from company_certifications table
         primary_goal: Array.isArray(company.primary_goal) ? company.primary_goal : (company.primary_goal ? [company.primary_goal] : []),
         target_tenders: company.target_tenders || '',
-        uea_ready: company.uea_ready || false,
+        mandatory_exclusion: company.mandatory_exclusion || false,
+        discretionary_exclusion: company.discretionary_exclusion || false,
         match_ready: company.match_ready || false,
       }))
     }
@@ -397,24 +383,6 @@ export default function OnboardingPage() {
     }
   }
 
-  // Helper functions to convert between text values and indices
-  const getContractRangeIndex = (textValue) => {
-    const index = contractRangeLabels.indexOf(textValue)
-    return index >= 0 ? index : 0
-  }
-
-  const getValueBandIndex = (textValue) => {
-    const index = valueBandLabels.indexOf(textValue)
-    return index >= 0 ? index : 0
-  }
-
-  const formatContractRange = (value) => {
-    return contractRangeLabels[value] || contractRangeLabels[0]
-  }
-
-  const formatValueBand = (value) => {
-    return valueBandLabels[value] || valueBandLabels[0]
-  }
 
 
   const addPortfolio = () => {
@@ -428,7 +396,7 @@ export default function OnboardingPage() {
         title: '',
         client_type: '',
         year: '',
-        value_band: '€50k – €250k',
+        value_band: 50000,
         description: '',
         cpvs: [],
         isNew: true,
@@ -513,7 +481,7 @@ export default function OnboardingPage() {
       newErrors.contract_type = 'Contract type is required'
     }
     
-    if (!formData.contract_range || formData.contract_range.trim() === '') {
+    if (!formData.contract_range || (typeof formData.contract_range !== 'number' && (!formData.contract_range || formData.contract_range.toString().trim() === ''))) {
       newErrors.contract_range = 'Contract range is required'
     }
     
@@ -561,7 +529,7 @@ export default function OnboardingPage() {
           }
         }
         
-        if (!portfolio.value_band || portfolio.value_band.trim() === '') {
+        if (!portfolio.value_band || (typeof portfolio.value_band !== 'number' && (!portfolio.value_band || portfolio.value_band.toString().trim() === ''))) {
           newPortfolioErrors[`portfolio_${index}_value_band`] = 'Project value range is required'
         }
       }
@@ -636,8 +604,6 @@ export default function OnboardingPage() {
 
     await createPortfolios(companyId, portfoliosToCreate)
   }
-
-
 
   // Save company certifications to company_certifications table
   // Only inserts new certifications during onboarding (no updates or deletes)
@@ -719,7 +685,8 @@ export default function OnboardingPage() {
         primary_goal: Array.isArray(formData.primary_goal) && formData.primary_goal.length > 0 ? formData.primary_goal : null,
         target_tenders: formData.target_tenders || null,
         company_website: formData.company_website || null,
-        uea_ready: formData.uea_ready || false,
+        mandatory_exclusion: formData.mandatory_exclusion || false,
+        discretionary_exclusion: formData.discretionary_exclusion || false,
         match_ready: formData.match_ready || false,
       }
 
@@ -769,6 +736,30 @@ export default function OnboardingPage() {
 
   const isLastStep = currentStep === steps.length
   const isFirstStep = currentStep === 1
+
+  // Calculate progress based on mandatory fields
+  const calculateProgress = () => {
+    let completedFields = 0
+    let totalFields = 0
+
+    // Step 1 mandatory fields
+    totalFields += 5
+    if (formData.region && formData.region.trim() !== '') completedFields++
+    if (formData.workerSize && formData.workerSize.trim() !== '') completedFields++
+    if (formData.cpvs && formData.cpvs.length > 0) completedFields++
+    if (formData.contract_type && formData.contract_type.length > 0) completedFields++
+    if (formData.contract_range && (typeof formData.contract_range === 'number' ? formData.contract_range > 0 : (formData.contract_range.toString().trim() !== ''))) completedFields++
+
+    // Step 2 mandatory fields
+    totalFields += 1
+    if (formData.primary_goal && formData.primary_goal.length > 0) completedFields++
+
+    // Step 3 is optional, so we don't count it in mandatory fields
+
+    return totalFields > 0 ? Math.round((completedFields / totalFields) * 100) : 0
+  }
+
+  const progressPercentage = calculateProgress()
 
   // Show loading while auth is loading or initial data is being fetched
   if (authLoading || isLoading) {
@@ -1030,6 +1021,36 @@ export default function OnboardingPage() {
         >
           {isSubmitting && <LoadingOverlay message="Saving your information..." />}
           <Box p={{ base: "6", md: "8" }} data-protonpass-form="">
+            {/* Progress Bar - Based on mandatory fields */}
+            <Box mb="4" >
+              <Box mb="2" display="flex" justifyContent="space-between" alignItems="center">
+                <Text fontSize="sm" fontWeight="600" color="#333">
+                  Progress
+                </Text>
+                <Text fontSize="sm" fontWeight="600" color="#1f6ae1">
+                  {progressPercentage}%
+                </Text>
+              </Box>
+              <Box
+                h="8px"
+                w="100%"
+                borderRadius="full"
+                bg="#efefef"
+                overflow="hidden"
+                position="relative"
+              >
+                <Box
+                  h="100%"
+                  borderRadius="full"
+                  transition="all 0.5s ease"
+                  style={{
+                    width: `${progressPercentage}%`,
+                    background: "linear-gradient(90deg, #1f6ae1 0%, #6b4eff 100%)"
+                  }}
+                />
+              </Box>
+            </Box>
+
             {/* Step 1: Company Information */}
             {currentStep === 1 && (
               <Box>
@@ -1049,7 +1070,7 @@ export default function OnboardingPage() {
                        Step 1: {steps[0].title}
                       </Heading>
                       <Tooltip content="This information helps us match you with relevant tenders and assess your eligibility for opportunities.">
-                      <BsExclamationCircle size={20} />
+                      <BsExclamationCircle size={20} className='!text-gray-400' />
                       </Tooltip>
                     </HStack>
                     <Text fontSize="sm" color="#666">
@@ -1260,11 +1281,11 @@ export default function OnboardingPage() {
                         <Box>
                           <SliderField
                             label="Typical contract values of interest"
-                            value={getContractRangeIndex(formData.contract_range)}
-                            onChange={(value) => updateFormData('contract_range', contractRangeLabels[value] || contractRangeLabels[0])}
-                            min={0}
-                            max={3}
-                            step={1}
+                            value={typeof formData.contract_range === 'number' ? formData.contract_range : parseContractRange(formData.contract_range)}
+                            onChange={(value) => updateFormData('contract_range', value)}
+                            min={50000}
+                            max={5000000}
+                            step={1000}
                             required
                             maxW="100%"
                             formatValue={formatContractRange}
@@ -1302,7 +1323,7 @@ export default function OnboardingPage() {
                         Step 2: {steps[1].title}
                       </Heading>
                       <Tooltip content="This information helps us match you with relevant tenders and partners based on your goals and capabilities.">
-                      <BsExclamationCircle size={20} />
+                      <BsExclamationCircle size={20} className='!text-gray-400' />
                       </Tooltip>
                     </HStack>
                     <Text fontSize="sm" color="#666">
@@ -1420,6 +1441,33 @@ export default function OnboardingPage() {
                         />
                       </VStack>
                     </Box>
+                    {/* Eligibility Self-Check Card */}
+                    <Box
+                      borderRadius="xl"
+                      p="5"
+                      bg="#fafafa"
+                      borderWidth="1px"
+                      borderStyle="solid"
+                      borderColor="#efefef"
+                    >
+                      <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
+                        Eligibility self-check (self-declared)
+                      </Text>
+                      <VStack gap="4" align="stretch">
+                        <Toggle
+                          label="Do you confirm that no mandatory exclusion grounds apply to your organization?"
+                          checked={formData.mandatory_exclusion}
+                          onCheckedChange={(details) => updateFormData('mandatory_exclusion', details.checked)}
+                          helperText="This is a self-declaration. Formal verification occurs during tender submission."
+                        />
+                        <Toggle
+                          label="Do you confirm that no discretionary exclusion grounds apply that would prevent participation in tenders?"
+                          checked={formData.discretionary_exclusion}
+                          onCheckedChange={(details) => updateFormData('discretionary_exclusion', details.checked)}
+                          helperText="This is a self-declaration. Formal verification occurs during tender submission."
+                        />
+                      </VStack>
+                    </Box>
                     {/* Status Card */}
                     <Box
                       borderRadius="xl"
@@ -1432,13 +1480,7 @@ export default function OnboardingPage() {
                       <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
                         Status & Readiness
                       </Text>
-                      <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
-                        <Toggle
-                          label="UEA Ready"
-                          checked={formData.uea_ready}
-                          onCheckedChange={(details) => updateFormData('uea_ready', details.checked)}
-                          helperText="Certification is UEA ready"
-                        />
+                      <Box>
                         <Toggle
                           label="Open to partner matching"
                           checked={formData.match_ready}
@@ -1478,7 +1520,7 @@ export default function OnboardingPage() {
                           </Text>
                         </Heading>
                         <Tooltip content="Portfolio projects are used to assess whether your organization meets experience and capability requirements commonly requested in public tenders.">
-                          <BsExclamationCircle size={20} />
+                        <BsExclamationCircle size={20} className='!text-gray-400' />
                         </Tooltip>
                       </HStack>
                       <Text fontSize="sm" color="#666" mb="2">
@@ -1631,11 +1673,11 @@ export default function OnboardingPage() {
                                   <Box>
                                     <SliderField
                                       label="Project value range"
-                                      value={getValueBandIndex(portfolio.value_band)}
-                                      onChange={(value) => updatePortfolio(index, 'value_band', valueBandLabels[value] || valueBandLabels[0])}
-                                      min={0}
-                                      max={3}
-                                      step={1}
+                                      value={typeof portfolio.value_band === 'number' ? portfolio.value_band : parseContractRange(portfolio.value_band)}
+                                      onChange={(value) => updatePortfolio(index, 'value_band', value)}
+                                      min={50000}
+                                      max={5000000}
+                                      step={50000}
                                       required
                                       maxW="100%"
                                       formatValue={formatValueBand}
@@ -1657,12 +1699,15 @@ export default function OnboardingPage() {
                                       value={portfolio.cpvs || []}
                                       onValueChange={(details) => updatePortfolio(index, 'cpvs', details.value || [])}
                                     />
-                                    <InputField
+                                    <TextareaField
                                       label="Project description"
                                       placeholder="Describe the project scope, deliverables, and relevant experience"
                                       value={portfolio.description}
                                       onChange={(e) => updatePortfolio(index, 'description', e.target.value)}
                                       helperText="Focus on aspects that demonstrate your organization's experience and capabilities relevant to public tender requirements"
+                                      resize="none"
+                                      autoresize
+                                      maxH="5lh"
                                     />
                                   </VStack>
                                 </Box>
@@ -1740,7 +1785,7 @@ export default function OnboardingPage() {
                   }}
                 />
                 <Text fontSize="xs" color="#333" fontWeight="500">
-                  Step {currentStep} of {steps.length}
+                  {steps.length} steps · ~5 minutes
                 </Text>
               </Box>
               {isLastStep ? (

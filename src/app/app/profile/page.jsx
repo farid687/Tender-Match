@@ -8,6 +8,7 @@ import { toaster } from '@/elements/toaster'
 import { Button } from '@/elements/button'
 import { IconButton } from '@/elements/icon-button'
 import { InputField } from '@/elements/input'
+import { TextareaField } from '@/elements/textarea'
 import { SelectField } from '@/elements/select'
 import { MultiSelectField } from '@/elements/multi-select'
 import { SliderField } from '@/elements/slider'
@@ -17,9 +18,11 @@ import { TabButton } from '@/elements/tab-button'
 import { YearPicker } from '@/elements/year-picker'
 import { Box, Text, Heading, VStack, HStack } from '@chakra-ui/react'
 import { LuBuilding2, LuGlobe, LuUserRound, LuBriefcase, LuPlus, LuTrash2, LuSave, LuSettings, LuLock } from 'react-icons/lu'
+import { BsExclamationCircle } from 'react-icons/bs'
+import { Tooltip } from '@/elements/tooltip'
 import { passwordStrength } from 'check-password-strength'
 import { useAuth  } from '@/hooks/useAuth'
-import { clientTypes, contractTypes, contractRangeLabels, valueBandLabels, MAX_PORTFOLIOS, primaryGoalOptions, targetTendersOptions } from '../onboarding/variables'
+import { clientTypes, contractTypes, MAX_PORTFOLIOS, primaryGoalOptions, targetTendersOptions, formatCurrency, parseContractRange, formatContractRange, formatValueBand } from '../onboarding/variables'
 import { Loading, LoadingOverlay } from '@/elements/loading'
 import { useGlobal } from '@/context'
 
@@ -34,7 +37,7 @@ export default function ProfilePage() {
   const [openPortfolioIndex, setOpenPortfolioIndex] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [passwordForm, setPasswordForm] = useState({ password: "", confirmPassword: "" })
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", password: "", confirmPassword: "" })
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
   const [formData, setFormData] = useState({
     // Step 1: Company Information
@@ -45,23 +48,22 @@ export default function ProfilePage() {
     company_website: '',
     cpvs: [],
     contract_type: [],
-    contract_range: '€50k – €250k',
+    contract_range: 50000,
 
     // Step 2: Company Details
-    certification: [],
     primary_goal: [],
     target_tenders: '',
-    uea_ready: false,
+    mandatory_exclusion: false,
+    discretionary_exclusion: false,
     match_ready: false,
   })
 
-  // Separate state for portfolios
   const [portfolios, setPortfolios] = useState([
     {  
       title: '',
       client_type: '',
       year: '',
-      value_band: '0–50k',
+      value_band: 50000,
       description: '',
       cpvs: [],
     }
@@ -70,30 +72,66 @@ export default function ProfilePage() {
   // Validation errors state
   const [errors, setErrors] = useState({})
   const [portfolioErrors, setPortfolioErrors] = useState({})
+  const [companyCertifications, setCompanyCertifications] = useState([]) 
 
   // Fetch certifications from Supabase
   const fetchCertifications = async () => {
     try {
       const { data, error } = await supabase
         .from('certifications')
-        .select('id, name, category')
+        .select('id, code, name, category, description, is_equivalent')
         .order('category', { ascending: true })
         .order('name', { ascending: true })
-      
+
       if (error) {
         console.error('Error fetching certifications:', error)
         setCertifications([])
       } else {
+        // Map to ensure id, name, category, description, and is_equivalent structure
         const mappedCertifications = (data || []).map(cert => ({
           id: cert.id,
+          code: cert.code || '',
           name: cert.name,
-          category: cert.category || 'Other'
+          category: cert.category || 'Other',
+          description: cert.description || '',
+          is_equivalent: cert.is_equivalent || false
         }))
         setCertifications(mappedCertifications)
       }
     } catch (error) {
       console.error('Exception fetching certifications:', error)
       setCertifications([])
+    }
+  }
+
+  // Fetch company certifications from company_certifications table
+  const fetchCompanyCertifications = async (companyId) => {
+    if (!companyId) return
+
+    try {
+      const { data, error } = await supabase
+        .from('company_certifications')
+        .select('id, certification_id, status, notes')
+        .eq('company_id', companyId)
+
+      if (error) {
+        console.error('Error fetching company certifications:', error)
+        return []
+      }
+
+      if(data){
+        const companyCertifications = data.map(certi => ({
+          certification_id: certi.certification_id,
+          status: certi.status || 'certified',
+          notes: certi.notes || '',
+          isExisting: true
+        }))
+        setCompanyCertifications(companyCertifications)
+      }
+     
+    } catch (error) {
+      console.error('Exception fetching company certifications:', error)
+      return []
     }
   }
 
@@ -174,7 +212,8 @@ export default function ProfilePage() {
           return {
             ...portfolio,
             year: yearValue || '',
-            cpvs: Array.isArray(portfolio.cpvs) ? portfolio.cpvs : (portfolio.cpvs ? [portfolio.cpvs] : [])
+            cpvs: Array.isArray(portfolio.cpvs) ? portfolio.cpvs : (portfolio.cpvs ? [portfolio.cpvs] : []),
+            value_band: typeof portfolio.value_band === 'number' ? portfolio.value_band : parseContractRange(portfolio.value_band)
           }
         })
         setPortfolios(portfoliosWithCpvs)
@@ -186,7 +225,7 @@ export default function ProfilePage() {
           title: '',
           client_type: '',
           year: '',
-          value_band: '0–50k',
+          value_band: 50000,
           description: '',
           cpvs: [],
         }])
@@ -217,6 +256,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user?.company_id) {
       getCompany(user.company_id)
+      fetchCompanyCertifications(user.company_id)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.company_id])
@@ -233,11 +273,12 @@ export default function ProfilePage() {
         company_website: company.company_website || '',
         cpvs: Array.isArray(company.cpvs) ? company.cpvs : [],
         contract_type: Array.isArray(company.contract_type) ? company.contract_type : (company.contract_type ? [company.contract_type] : []),
-        contract_range: company.contract_range || '€50k – €250k',
-        certification: Array.isArray(company.certification) ? company.certification : (company.certification ? [company.certification] : []),
+        contract_range: company.contract_range ? parseContractRange(company.contract_range) : 50000,
+        // Certifications are loaded separately from company_certifications table
         primary_goal: Array.isArray(company.primary_goal) ? company.primary_goal : (company.primary_goal ? [company.primary_goal] : []),
         target_tenders: company.target_tenders || '',
-        uea_ready: company.uea_ready || false,
+        mandatory_exclusion: company.mandatory_exclusion || false,
+        discretionary_exclusion: company.discretionary_exclusion || false,
         match_ready: company.match_ready || false,
       }))
     }
@@ -288,24 +329,69 @@ export default function ProfilePage() {
     }
   }
 
-  // Helper functions to convert between text values and indices
-  const getContractRangeIndex = (textValue) => {
-    const index = contractRangeLabels.indexOf(textValue)
-    return index >= 0 ? index : 0
+  // Handle certification selection change
+  // Users can add new certifications and update status, but cannot delete existing ones
+  const handleCertificationChange = (details) => {
+    const selectedCertIds = details.value || []
+    
+    setCompanyCertifications(prev => {
+      const currentCertIds = prev.map(c => c.certification_id)
+      
+      // Get all existing certification IDs (these cannot be removed)
+      const existingCertIds = prev.filter(c => c.isExisting).map(c => c.certification_id)
+      
+      // Ensure existing certifications are always included in selection
+      const finalSelectedIds = [...new Set([...selectedCertIds, ...existingCertIds])]
+      
+      // Find newly added certifications (not in current list)
+      const newCertIds = finalSelectedIds.filter(id => !currentCertIds.includes(id))
+      
+      // Find removed certifications - but only allow removing newly added ones (not existing)
+      const removedCertIds = currentCertIds.filter(id => !finalSelectedIds.includes(id))
+      
+      // Start with all existing certifications (they must always be kept)
+      let updatedCerts = prev.filter(c => c.isExisting)
+      
+      // Add back newly added certifications that weren't removed
+      prev.filter(c => !c.isExisting && !removedCertIds.includes(c.certification_id))
+        .forEach(cert => updatedCerts.push(cert))
+      
+      // Add new certifications with default status
+      newCertIds.forEach(certId => {
+        updatedCerts.push({
+          certification_id: certId,
+          status: 'certified',
+          notes: '',
+          isExisting: false 
+        })
+      })
+      
+      return updatedCerts
+    })
   }
 
-  const getValueBandIndex = (textValue) => {
-    const index = valueBandLabels.indexOf(textValue)
-    return index >= 0 ? index : 0
+  // Handle certification status change
+  const handleCertificationStatusChange = (certificationId, status) => {
+    setCompanyCertifications(prev =>
+      prev.map(cert =>
+        cert.certification_id === certificationId
+          ? { ...cert, status }
+          : cert
+      )
+    )
   }
 
-  const formatContractRange = (value) => {
-    return contractRangeLabels[value] || contractRangeLabels[0]
+  // Handle certification notes change (for equivalent certifications)
+  const handleCertificationNotesChange = (certificationId, notes) => {
+    setCompanyCertifications(prev =>
+      prev.map(cert =>
+        cert.certification_id === certificationId
+          ? { ...cert, notes }
+          : cert
+      )
+    )
   }
 
-  const formatValueBand = (value) => {
-    return valueBandLabels[value] || valueBandLabels[0]
-  }
 
   const addPortfolio = () => {
     if (portfolios.length >= MAX_PORTFOLIOS) {
@@ -318,7 +404,7 @@ export default function ProfilePage() {
         title: '',
         client_type: '',
         year: '',
-        value_band: '0–50k',
+        value_band: 50000,
         description: '',
         cpvs: [],
         isNew: true,
@@ -475,7 +561,7 @@ export default function ProfilePage() {
       newErrors.contract_type = 'Contract type is required'
     }
 
-    if (!formData.contract_range || formData.contract_range.trim() === '') {
+    if (!formData.contract_range || (typeof formData.contract_range !== 'number' && (!formData.contract_range || formData.contract_range.toString().trim() === ''))) {
       newErrors.contract_range = 'Contract range is required'
     }
 
@@ -512,7 +598,7 @@ export default function ProfilePage() {
         }
       }
 
-      if (!portfolio.value_band || portfolio.value_band.trim() === '') {
+      if (!portfolio.value_band || (typeof portfolio.value_band !== 'number' && (!portfolio.value_band || portfolio.value_band.toString().trim() === ''))) {
         newPortfolioErrors[`portfolio_${index}_value_band`] = 'Project value range is required'
       }
     })
@@ -522,6 +608,71 @@ export default function ProfilePage() {
 
     // Return true if no errors
     return Object.keys(newErrors).length === 0 && Object.keys(newPortfolioErrors).length === 0
+  }
+
+  // Save company certifications to company_certifications table
+  // Users can add new certifications and update status/notes, but cannot delete existing ones
+  const saveCompanyCertifications = async (companyId) => {
+    if (!companyId) return
+
+    // Get current certifications from database
+    const { data: existingCerts } = await supabase
+      .from('company_certifications')
+      .select('id, certification_id')
+      .eq('company_id', companyId)
+
+    const existingCertIds = (existingCerts || []).map(c => c.certification_id)
+    
+    // Find new certifications (not in existing) - only newly added ones
+    const newCertifications = companyCertifications.filter(
+      cert => !existingCertIds.includes(cert.certification_id)
+    )
+
+    // Insert new certifications
+    if (newCertifications.length > 0) {
+      const insertData = newCertifications.map(cert => ({
+        company_id: companyId,
+        certification_id: cert.certification_id,
+        status: cert.status || 'certified',
+        notes: cert.notes || null
+      }))
+
+      const { error: insertError } = await supabase
+        .from('company_certifications')
+        .insert(insertData)
+
+      if (insertError) {
+        throw new Error(`Failed to save certifications: ${insertError.message}`)
+      }
+    }
+
+    // Update existing certifications (status or notes may have changed)
+    // Only update certifications that exist in the database
+    const certsToUpdate = companyCertifications.filter(cert => 
+      existingCertIds.includes(cert.certification_id)
+    )
+
+    if (certsToUpdate.length > 0) {
+      const updatePromises = certsToUpdate.map(cert => {
+        const existingCert = existingCerts?.find(ec => ec.certification_id === cert.certification_id)
+        if (!existingCert) return null
+
+        return supabase
+          .from('company_certifications')
+          .update({
+            status: cert.status || 'certified',
+            notes: cert.notes || null
+          })
+          .eq('id', existingCert.id)
+      })
+
+      const updateResults = await Promise.all(updatePromises.filter(Boolean))
+      const updateError = updateResults.find(result => result.error)
+      
+      if (updateError) {
+        throw new Error(`Failed to update certifications: ${updateError.error.message}`)
+      }
+    }
   }
 
   // Save portfolios using flags: isDelete, isEdit, isNew
@@ -564,6 +715,7 @@ export default function ProfilePage() {
 
     try {
       await savePortfolios(user.company_id)
+      await saveCompanyCertifications(user.company_id)
       
       const companyUpdateData = {
         region: formData.region || null,
@@ -575,8 +727,10 @@ export default function ProfilePage() {
         primary_goal: Array.isArray(formData.primary_goal) && formData.primary_goal.length > 0 ? formData.primary_goal : null,
         target_tenders: formData.target_tenders || null,
         company_website: formData.company_website || null,
+        mandatory_exclusion: formData.mandatory_exclusion || false,
+        discretionary_exclusion: formData.discretionary_exclusion || false,
         match_ready: formData.match_ready || false,
-        // Note: kvk_number, uea_ready, and certification are NOT updated here as they are disabled
+        // Note: kvk_number is NOT updated here as it is disabled
       }
 
       const { data: companyData, error: companyError } = await supabase
@@ -622,6 +776,10 @@ export default function ProfilePage() {
   }
 
   const handlePasswordSubmit = async () => {
+    if (!passwordForm.currentPassword?.trim()) {
+      toaster.create({ title: "Enter your current password", type: "error" })
+      return
+    }
     if (passwordForm.password !== passwordForm.confirmPassword) {
       toaster.create({ title: "Passwords do not match", type: "error" })
       return
@@ -635,11 +793,22 @@ export default function ProfilePage() {
 
     setIsUpdatingPassword(true)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user?.email) {
+        toaster.create({ title: "Session expired", description: "Please sign in again.", type: "error" })
+        return
+      }
+      await auth.signIn(session.user.email, passwordForm.currentPassword)
       await auth.updatePassword(passwordForm.password)
       toaster.create({ title: "Password updated successfully", type: "success" })
-      setPasswordForm({ password: "", confirmPassword: "" })
+      setPasswordForm({ currentPassword: "", password: "", confirmPassword: "" })
     } catch (error) {
-      toaster.create({ title: "Failed to update password", description: error.message, type: "error" })
+      const msg = error?.message?.toLowerCase?.() ?? ""
+      if (msg.includes("invalid") || msg.includes("credentials")) {
+        toaster.create({ title: "Current password is incorrect", type: "error" })
+      } else {
+        toaster.create({ title: "Failed to update password", description: error.message, type: "error" })
+      }
     } finally {
       setIsUpdatingPassword(false)
     }
@@ -654,6 +823,26 @@ export default function ProfilePage() {
       content: (
         <Box p="4">
           <VStack gap="3" align="stretch">
+            {/* Section Header */}
+            <Box mb="2">
+              <HStack gap="2" alignItems="center" mb="2">
+                <Heading 
+                  size="lg" 
+                  fontWeight="700"
+                  style={{ 
+                    background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text"
+                  }}
+                >
+                  Company Information
+                </Heading>
+                <Tooltip content="This information helps us match you with relevant tenders and assess your eligibility for opportunities.">
+                  <BsExclamationCircle size={20} className='!text-gray-400' />
+                </Tooltip>
+              </HStack>
+            </Box>
             {/* Basic Information Card */}
             <Box
               borderRadius="xl"
@@ -850,25 +1039,25 @@ export default function ProfilePage() {
                     onChange={(e) => updateFormData('company_website', e.target.value)}
                   />
                 </Box>
-                <Box>
-                  <SliderField
-                    label="Typical contract values of interest"
-                    value={getContractRangeIndex(formData.contract_range)}
-                    onChange={(value) => updateFormData('contract_range', contractRangeLabels[value] || contractRangeLabels[0])}
-                    min={0}
-                    max={3}
-                    step={1}
-                    required
-                    maxW="100%"
-                    formatValue={formatContractRange}
-                  />
-                  <Text fontSize="xs" color="#666" mt="1">
-                    This is used to match publicly published tenders
-                  </Text>
-                  {errors.contract_range && (
-                    <Text fontSize="xs" color="red.500" mt="1">{errors.contract_range}</Text>
-                  )}
-                </Box>
+                  <Box>
+                    <SliderField
+                      label="Typical contract values of interest"
+                      value={typeof formData.contract_range === 'number' ? formData.contract_range : parseContractRange(formData.contract_range)}
+                      onChange={(value) => updateFormData('contract_range', value)}
+                      min={50000}
+                      max={5000000}
+                      step={1000}
+                      required
+                      maxW="100%"
+                      formatValue={formatContractRange}
+                    />
+                    <Text fontSize="xs" color="#666" mt="1">
+                      This is used to match publicly published tenders
+                    </Text>
+                    {errors.contract_range && (
+                      <Text fontSize="xs" color="red.500" mt="1">{errors.contract_range}</Text>
+                    )}
+                  </Box>
               </VStack>
             </Box>
           </VStack>
@@ -883,6 +1072,26 @@ export default function ProfilePage() {
       content: (
         <Box p="6">
           <VStack gap="5" align="stretch">
+            {/* Section Header */}
+            <Box mb="2">
+              <HStack gap="2" alignItems="center" mb="2">
+                <Heading 
+                  size="lg" 
+                  fontWeight="700"
+                  style={{ 
+                    background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text"
+                  }}
+                >
+                  Company Details
+                </Heading>
+                <Tooltip content="This information helps us match you with relevant tenders and partners based on your goals and capabilities.">
+                  <BsExclamationCircle size={20} className='!text-gray-400' />
+                </Tooltip>
+              </HStack>
+            </Box>
             {/* Certification & Goals Card */}
             <Box
               borderRadius="xl"
@@ -896,19 +1105,78 @@ export default function ProfilePage() {
                 Certification & Goals
               </Text>
               <VStack gap="4" align="stretch">
-                <Box opacity="0.6" cursor="not-allowed">
+                <Box>
                   <MultiSelectField
-                    label="Certification"
+                    label="Relevant certifications (optional)"
                     items={certifications}
-                    placeholder="Select certification"
-                    value={formData.certification}
-                    onValueChange={handleMultiSelectChange('certification')}
+                    placeholder="Select certifications"
+                    value={companyCertifications?.map(c => c.certification_id) || []}
+                    onValueChange={handleCertificationChange}
                     groupBy={(item) => item.category || 'Other'}
-                    disabled={true}
                   />
                   <Text fontSize="xs" color="#666" mt="1">
-                    Certification cannot be updated through profile settings
+                    Select certifications your organization holds that are commonly requested in public tenders. You can add new certifications and update their status, but existing certifications cannot be removed.
                   </Text>
+                  
+                  {/* Inline status selectors for selected certifications */}
+                  {companyCertifications && companyCertifications.length > 0 && (
+                    <Box mt="4" p="4" bg="#f9fafb" borderRadius="md" borderWidth="1px" borderColor="#e5e7eb">
+                      <VStack gap="3" align="stretch">
+                        {companyCertifications?.map((cert) => {
+                          const certInfo = certifications.find(c => c.id === cert.certification_id)
+                          const isEquivalent = certInfo?.is_equivalent || false
+                          
+                          return (
+                            <Box key={cert.certification_id} p="3" bg="white" borderRadius="md" borderWidth="1px" borderColor="#e5e7eb">
+                              <HStack gap="3" align="flex-start">
+                                <Box flex="1">
+                                  <Text fontSize="sm" fontWeight="600" mb="1">
+                                    {certInfo?.name || 'Unknown Certification'}
+                                    {certInfo?.code && (
+                                      <Text as="span" fontSize="xs" color="#666" ml="2" fontWeight="400">
+                                        ({certInfo.code})
+                                      </Text>
+                                    )}
+                                  </Text>
+                                  {certInfo?.description && (
+                                    <Text fontSize="xs" color="#666" mb="2">
+                                      {certInfo.description}
+                                    </Text>
+                                  )}
+                                </Box>
+                                <Box minW="150px">
+                                  <SelectField
+                                    items={[
+                                      { id: 'certified', name: 'Certified' },
+                                      { id: 'in_progress', name: 'In progress' },
+                                      { id: 'self_declared', name: 'Self-declared' }
+                                    ]}
+                                    placeholder="Select status"
+                                    value={cert.status ? [cert.status] : ['certified']}
+                                    onValueChange={(details) => handleCertificationStatusChange(cert.certification_id, details.value[0] || 'certified')}
+                                  />
+                                </Box>
+                              </HStack>
+                              {isEquivalent && (
+                                <Box mt="2">
+                                  <InputField
+                                    label="Specify equivalent certification"
+                                    placeholder="e.g., ISO 9001 equivalent"
+                                    value={cert.notes || ''}
+                                    onChange={(e) => handleCertificationNotesChange(cert.certification_id, e.target.value)}
+                                    helperText="Please specify the equivalent certification you hold"
+                                  />
+                                </Box>
+                              )}
+                            </Box>
+                          )
+                        })}
+                        <Text fontSize="xs" color="#666" mt="2" fontStyle="italic">
+                          Certification status is self-declared and used for matching and eligibility indication only. Formal proof is provided during tender submission.
+                        </Text>
+                      </VStack>
+                    </Box>
+                  )}
                 </Box>
                 <Box>
                   <MultiSelectField
@@ -935,6 +1203,33 @@ export default function ProfilePage() {
               </VStack>
             </Box>
 
+            {/* Eligibility Self-Check Card */}
+            <Box
+              borderRadius="xl"
+              p="5"
+              bg="#fafafa"
+              borderWidth="1px"
+              borderStyle="solid"
+              borderColor="#efefef"
+            >
+              <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
+                Eligibility self-check (self-declared)
+              </Text>
+              <VStack gap="4" align="stretch">
+                <Toggle
+                  label="Do you confirm that no mandatory exclusion grounds apply to your organization?"
+                  checked={formData.mandatory_exclusion}
+                  onCheckedChange={(details) => updateFormData('mandatory_exclusion', details.checked)}
+                  helperText="This is a self-declaration. Formal verification occurs during tender submission."
+                />
+                <Toggle
+                  label="Do you confirm that no discretionary exclusion grounds apply that would prevent participation in tenders?"
+                  checked={formData.discretionary_exclusion}
+                  onCheckedChange={(details) => updateFormData('discretionary_exclusion', details.checked)}
+                  helperText="This is a self-declaration. Formal verification occurs during tender submission."
+                />
+              </VStack>
+            </Box>
             {/* Status Card */}
             <Box
               borderRadius="xl"
@@ -947,15 +1242,7 @@ export default function ProfilePage() {
               <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
                 Status & Readiness
               </Text>
-              <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
-                <Box opacity="0.6" cursor="not-allowed">
-                  <Toggle
-                    label="UEA Ready"
-                    checked={formData.uea_ready}
-                    disabled={true}
-                    helperText="UEA Ready status cannot be updated through profile settings"
-                  />
-                </Box>
+              <Box>
                 <Toggle
                   label="Open to partner matching"
                   checked={formData.match_ready}
@@ -978,25 +1265,29 @@ export default function ProfilePage() {
           <VStack gap="4" align="stretch">
             <Box mb="2" display="flex" justifyContent="space-between" alignItems="flex-start" gap="4">
               <Box flex="1">
-                <Heading
-                  size="lg"
-                  fontWeight="700"
-                  display="flex"
-                  alignItems="center"
-                  gap="2"
-                  mb="2"
-                  style={{
-                    background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text"
-                  }}
-                >
-                  Portfolio Projects
-                  <Text as="span" fontWeight="600" color="#1f6ae1">
-                    ({portfolios.filter(p => !p.isDelete).length} of {MAX_PORTFOLIOS})
-                  </Text>
-                </Heading>
+                <HStack gap="2" alignItems="center" mb="2">
+                  <Heading
+                    size="lg"
+                    fontWeight="700"
+                    display="flex"
+                    alignItems="center"
+                    gap="2"
+                    style={{
+                      background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text"
+                    }}
+                  >
+                    Portfolio Projects
+                    <Text as="span" fontWeight="600" color="#1f6ae1">
+                      ({portfolios.filter(p => !p.isDelete).length} of {MAX_PORTFOLIOS})
+                    </Text>
+                  </Heading>
+                  <Tooltip content="Portfolio projects are used to assess whether your organization meets experience and capability requirements commonly requested in public tenders.">
+                    <BsExclamationCircle size={20} className='!text-gray-400' />
+                  </Tooltip>
+                </HStack>
                 {/* <Box p="3" borderRadius="lg" bg="#f0f7ff" borderWidth="1px" borderColor="#b3d9ff" mb="4">
                   <Text fontSize="xs" color="#1e3a5f" fontWeight="500" lineHeight="1.5">
                     Portfolio projects are used to assess whether your organization meets experience and capability requirements commonly requested in public tenders.
@@ -1145,11 +1436,11 @@ export default function ProfilePage() {
                             <Box>
                               <SliderField
                                 label="Project value range"
-                                value={getValueBandIndex(portfolio.value_band)}
-                                onChange={(value) => updatePortfolio(index, 'value_band', valueBandLabels[value] || valueBandLabels[0])}
-                                min={0}
-                                max={3}
-                                step={1}
+                                value={typeof portfolio.value_band === 'number' ? portfolio.value_band : parseContractRange(portfolio.value_band)}
+                                onChange={(value) => updatePortfolio(index, 'value_band', value)}
+                                min={50000}
+                                max={5000000}
+                                step={50000}
                                 required
                                 maxW="100%"
                                 formatValue={formatValueBand}
@@ -1171,12 +1462,15 @@ export default function ProfilePage() {
                                 value={portfolio.cpvs || []}
                                 onValueChange={(details) => updatePortfolio(index, 'cpvs', details.value || [])}
                               />
-                              <InputField
+                              <TextareaField
                                 label="Project description"
                                 placeholder="Describe the project scope, deliverables, and relevant experience"
                                 value={portfolio.description}
                                 onChange={(e) => updatePortfolio(index, 'description', e.target.value)}
                                 helperText="Focus on aspects that demonstrate your organization's experience and capabilities relevant to public tender requirements"
+                                resize="none"
+                                autoresize
+                                maxH="5lh"
                               />
                             </VStack>
                           </Box>
@@ -1210,6 +1504,15 @@ export default function ProfilePage() {
                 Update Password
               </Text>
               <VStack gap="4" align="stretch">
+                <InputField
+                  label="Current Password"
+                  name="currentPassword"
+                  type="password"
+                  placeholder="Enter your current password"
+                  value={passwordForm.currentPassword}
+                  onChange={handlePasswordChange}
+                  required
+                />
                 <Box>
                   <InputField
                     label="New Password"
