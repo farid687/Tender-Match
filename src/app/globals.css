@@ -28,3 +28,34 @@
   }
 }
 
+
+
+.nl-map path {
+  fill: #e5e7eb; /* light gray */
+  transition: fill 0.2s ease;
+}
+
+.nl-map path:hover {
+  fill: #3b82f6; /* blue */
+}
+
+.nl-map path.selected {
+  fill: #1e3a8a; /* dark blue */
+}
+
+.nl-map path {
+  fill: #e5e7eb;
+  transition: fill 0.2s ease;
+}
+
+.nl-map path:hover {
+  fill: #3b82f6;
+}
+
+/* Collapsed: show only M (top half); overflow cuts off text below */
+.logo-img {
+  position: relative;
+  width: 30px !important;
+  height: 2rem;
+  overflow: hidden;
+}

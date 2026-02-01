@@ -138,12 +138,14 @@ export default function RegisterPage() {
                 alignItems="center" 
                 mb="3"
               >
-                <Box 
+              <Box 
                   as="img" 
                   src="/assets/MTM_Logos.svg" 
                   alt="Logo" 
-                  w="80px" 
-                  h="80px"
+                  w="140px" 
+                  h="auto"
+                  maxH="160px"
+                  objectFit="contain"
                   style={{ filter: "drop-shadow(0 4px 12px rgba(31, 106, 225, 0.15))" }}
                 />
               </Box>

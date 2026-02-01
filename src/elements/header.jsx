@@ -56,7 +56,7 @@ export function Header() {
       position="sticky"
       top="0"
       zIndex="1000"
-      py="5"
+      py="6"
       style={{
         background: "linear-gradient(180deg, #ffffff 0%, #fafafa 100%)",
         boxShadow: "0 2px 12px rgba(0, 0, 0, 0.04)"
@@ -65,7 +65,7 @@ export function Header() {
       <Box maxW="7xl" mx="auto" px={{ base: 4, md: 6 }}>
         <HStack justify="space-between" align="center">
           <Heading 
-            size="xl" 
+            size="2xl" 
             fontWeight="700"
             style={{
               background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
@@ -74,7 +74,7 @@ export function Header() {
               backgroundClip: "text"
             }}
           >
-            {pageName}
+            {pageName} 
           </Heading>
           
           <HStack gap={4}>

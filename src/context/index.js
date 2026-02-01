@@ -15,6 +15,7 @@ export function GlobalProvider({ children }) {
   const [user, setUser] = useState(null);
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sidenavCollapsed, setSidenavCollapsed] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const auth = useAuth();
@@ -69,6 +70,8 @@ export function GlobalProvider({ children }) {
         loading,
         signOut,
         setCompany,
+        sidenavCollapsed,
+        setSidenavCollapsed,
       }}
     >
       {children}

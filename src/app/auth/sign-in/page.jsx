@@ -123,8 +123,10 @@ export default function SignInPage() {
                   as="img" 
                   src="/assets/MTM_Logos.svg" 
                   alt="Logo" 
-                  w="120px" 
-                  h="120px"
+                  w="140px" 
+                  h="auto"
+                  maxH="160px"
+                  objectFit="contain"
                   style={{ filter: "drop-shadow(0 4px 12px rgba(31, 106, 225, 0.15))" }}
                 />
               </Box>

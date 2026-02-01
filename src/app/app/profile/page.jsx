@@ -22,7 +22,7 @@ import { BsExclamationCircle } from 'react-icons/bs'
 import { Tooltip } from '@/elements/tooltip'
 import { passwordStrength } from 'check-password-strength'
 import { useAuth  } from '@/hooks/useAuth'
-import { clientTypes, contractTypes, MAX_PORTFOLIOS, primaryGoalOptions, targetTendersOptions, formatCurrency, parseContractRange, formatContractRange, formatValueBand } from '../onboarding/variables'
+import { clientTypes, contractTypes, contractRangeLabels, MAX_PORTFOLIOS, primaryGoalOptions, targetTendersOptions, formatCurrency, parseContractRange, formatContractRange, formatValueBand, getContractRangeIndex, getContractRangeValue, CONTRACT_VALUE_MIN, CONTRACT_VALUE_MAX, parseCustomContractRange } from '../onboarding/variables'
 import { Loading, LoadingOverlay } from '@/elements/loading'
 import { useGlobal } from '@/context'
 
@@ -40,7 +40,7 @@ export default function ProfilePage() {
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", password: "", confirmPassword: "" })
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
   const [formData, setFormData] = useState({
-    // Step 1: Company Information
+    // Step 1: Company Profile
     region: '',
     region_interest: [],
     workerSize: '',
@@ -49,6 +49,7 @@ export default function ProfilePage() {
     cpvs: [],
     contract_type: [],
     contract_range: 50000,
+    custom_contract_range: '', // optional custom value in EUR (0–50,000,000)
 
     // Step 2: Company Details
     primary_goal: [],
@@ -140,7 +141,7 @@ export default function ProfilePage() {
     try {
       const { data, error } = await supabase
         .from('regions')
-        .select('id, name')
+        .select('id, name, province')
         .order('name', { ascending: true })
       
       if (error) {
@@ -149,7 +150,8 @@ export default function ProfilePage() {
       } else {
         const mappedRegions = (data || []).map(region => ({
           id: region.id,
-          name: region.name
+          name: region.name,
+          province: region.province
         }))
         setRegions(mappedRegions)
       }
@@ -274,6 +276,7 @@ export default function ProfilePage() {
         cpvs: Array.isArray(company.cpvs) ? company.cpvs : [],
         contract_type: Array.isArray(company.contract_type) ? company.contract_type : (company.contract_type ? [company.contract_type] : []),
         contract_range: company.contract_range ? parseContractRange(company.contract_range) : 50000,
+        custom_contract_range: company.custom_contract_range != null && company.custom_contract_range !== '' ? String(company.custom_contract_range) : '',
         // Certifications are loaded separately from company_certifications table
         primary_goal: Array.isArray(company.primary_goal) ? company.primary_goal : (company.primary_goal ? [company.primary_goal] : []),
         target_tenders: company.target_tenders || '',
@@ -539,7 +542,7 @@ export default function ProfilePage() {
 
     // Validate company information fields
     if (!formData.region || formData.region.trim() === '') {
-      newErrors.region = 'Company location is required'
+      newErrors.region = 'Company location (province) is required'
     }
 
     // Validate KVK number if it exists (must be exactly 8 digits)
@@ -563,6 +566,19 @@ export default function ProfilePage() {
 
     if (!formData.contract_range || (typeof formData.contract_range !== 'number' && (!formData.contract_range || formData.contract_range.toString().trim() === ''))) {
       newErrors.contract_range = 'Contract range is required'
+    }
+
+    // Optional custom contract value: numeric only, min €0, max €50,000,000
+    const customVal = formData.custom_contract_range?.toString().trim()
+    if (customVal !== '' && customVal != null) {
+      const num = Number(customVal)
+      if (Number.isNaN(num)) {
+        newErrors.custom_contract_range = 'Enter a valid number'
+      } else if (num < CONTRACT_VALUE_MIN) {
+        newErrors.custom_contract_range = `Minimum value is €${CONTRACT_VALUE_MIN.toLocaleString()}`
+      } else if (num > CONTRACT_VALUE_MAX) {
+        newErrors.custom_contract_range = `Maximum value is €${CONTRACT_VALUE_MAX.toLocaleString()}`
+      }
     }
 
     // Validate company details fields
@@ -724,6 +740,7 @@ export default function ProfilePage() {
         worker_size: formData.workerSize || null,
         contract_type: Array.isArray(formData.contract_type) && formData.contract_type.length > 0 ? formData.contract_type : null,
         contract_range: formData.contract_range || null,
+        custom_contract_range: parseCustomContractRange(formData.custom_contract_range),
         primary_goal: Array.isArray(formData.primary_goal) && formData.primary_goal.length > 0 ? formData.primary_goal : null,
         target_tenders: formData.target_tenders || null,
         company_website: formData.company_website || null,
@@ -818,16 +835,16 @@ export default function ProfilePage() {
     {
       id: 'company-info',
       value: 'company-info',
-      label: 'Company Information',
+      label: 'Company Profile',
       leftIcon: <LuBuilding2 />,
       content: (
-        <Box p="4">
-          <VStack gap="3" align="stretch">
+        <Box p={{ base: "6", md: "8" }}>
+          <VStack gap="5" align="stretch">
             {/* Section Header */}
             <Box mb="2">
               <HStack gap="2" alignItems="center" mb="2">
                 <Heading 
-                  size="lg" 
+                  size="xl" 
                   fontWeight="700"
                   style={{ 
                     background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
@@ -836,7 +853,7 @@ export default function ProfilePage() {
                     backgroundClip: "text"
                   }}
                 >
-                  Company Information
+                  Company Profile
                 </Heading>
                 <Tooltip content="This information helps us match you with relevant tenders and assess your eligibility for opportunities.">
                   <BsExclamationCircle size={20} className='!text-gray-400' />
@@ -846,29 +863,30 @@ export default function ProfilePage() {
             {/* Basic Information Card */}
             <Box
               borderRadius="xl"
-              p="4"
+              p="5"
               bg="#fafafa"
               borderWidth="1px"
               borderStyle="solid"
               borderColor="#efefef"
             >
-              <Text fontSize="xs" fontWeight="600" mb="3" textTransform="uppercase" letterSpacing="wide" color="#333">
+              <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
                 Basic Information
               </Text>
-              <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="3">
+              <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
                 <Box>
                   <SelectField
-                    label="Company location"
+                    label="Company location (province)"
                     items={regions}
-                    placeholder="Select your company location"
+                    placeholder="Select your company location (province)"
                     value={formData.region ? [formData.region] : []}
                     onValueChange={handleSelectChange('region')}
+                    groupBy={(region) => region.province || 'Other'}
                     required
                     invalid={!!errors.region}
                     errorText={errors.region}
                   />
                   <Text fontSize="xs" color="#666" mt="1">
-                    Where your company is based
+                    Where your company is registered
                   </Text>
                 </Box>
                 <Box position="relative">
@@ -885,43 +903,44 @@ export default function ProfilePage() {
                 </Box>
               </Box>
               
-              <Box mt="3">
+              <Box mt="4">
                 <MultiSelectField
-                  label="Tender interest regions"
+                  label="Preferred regions"
                   items={regions}
-                  placeholder="Select regions where you want to find tenders"
+                  placeholder="Where would you like to receive tenders?"
                   value={formData.region_interest}
                   onValueChange={handleMultiSelectChange('region_interest')}
+                  groupBy={(region) => region.province || 'Other'}
                 />
                 <Text fontSize="xs" color="#666" mt="1">
-                  Regions where you want to find tenders
+                  Where would you like to receive tenders?
                 </Text>
               </Box>
             </Box>
 
-            {/* Worker Size Card */}
+            {/* Company size Card */}
             <Box
               borderRadius="xl"
-              p="4"
+              p="5"
               bg="#fafafa"
               borderWidth={errors.workerSize ? "2px" : "1px"}
               borderStyle="solid"
               borderColor={errors.workerSize ? "#ef4444" : "#efefef"}
             >
-              <Text fontSize="xs" fontWeight="600" mb="3" textTransform="uppercase" letterSpacing="wide" color="#333">
-                Company Size
+              <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
+                Company size
               </Text>
               <Box>
                 <Text fontWeight="medium" fontSize="sm" mb="2" style={{ color: '#1c1c1c' }}>
-                  Worker Size
+                  Company size
                   <Text as="span" color="red.500" ml="1">*</Text>
                 </Text>
-                <Box display="grid" gridTemplateColumns="repeat(4, 1fr)" gap="2" mt="1">
+                <Box display="grid" gridTemplateColumns="repeat(4, 1fr)" gap="3" mt="2">
                   {[
                     { id: 'small', label: 'Small', range: '1 to 10' },
                     { id: 'medium', label: 'Medium', range: '10 to 50' },
                     { id: 'large', label: 'Large', range: '50 to 100' },
-                    { id: 'organization', label: 'Organization', range: '100+' },
+                    { id: 'organization', label: 'Enterprise (100+)', range: '100+' },
                   ].map((size) => {
                     const isSelected = formData.workerSize === size.id
                     return (
@@ -990,19 +1009,19 @@ export default function ProfilePage() {
             {/* Business Details Card */}
             <Box
               borderRadius="xl"
-              p="4"
+              p="5"
               bg="#fafafa"
               borderWidth="1px"
               borderStyle="solid"
               borderColor="#efefef"
             >
-              <Text fontSize="xs" fontWeight="600" mb="3" textTransform="uppercase" letterSpacing="wide" color="#333">
+              <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
                 Business Details
               </Text>
-              <VStack gap="3" align="stretch">
+              <VStack gap="4" align="stretch">
                 <Box>
                   <MultiSelectField
-                    label="CPV categories of interest"
+                    label="Business categories (CPV)"
                     items={cpvs}
                     placeholder="Search CPVs such as IT services, construction, consultancy"
                     value={formData.cpvs}
@@ -1015,10 +1034,10 @@ export default function ProfilePage() {
                     Select the CPV categories you want to receive tenders for
                   </Text>
                 </Box>
-                <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="3">
+                <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
                   <Box>
                     <MultiSelectField
-                      label="Type of contract"
+                      label="Contract type"
                       items={contractTypes}
                       placeholder="Select contract type"
                       value={formData.contract_type}
@@ -1031,25 +1050,27 @@ export default function ProfilePage() {
                       Select the types of public contracts you are interested in
                     </Text>
                   </Box>
-                  <InputField
-                    label="Company Website"
-                    type="url"
-                    placeholder="https://www.example.com (optional)"
-                    value={formData.company_website}
-                    onChange={(e) => updateFormData('company_website', e.target.value)}
-                  />
-                </Box>
                   <Box>
+                    <InputField
+                      label="Company website (optional)"
+                      type="url"
+                      placeholder="https://www.example.com (optional)"
+                      value={formData.company_website}
+                      onChange={(e) => updateFormData('company_website', e.target.value)}
+                    />
+                  </Box>
+                </Box>
+                <Box>
                     <SliderField
-                      label="Typical contract values of interest"
-                      value={typeof formData.contract_range === 'number' ? formData.contract_range : parseContractRange(formData.contract_range)}
-                      onChange={(value) => updateFormData('contract_range', value)}
-                      min={50000}
-                      max={5000000}
-                      step={1000}
+                      label="Typical contract value"
+                      value={getContractRangeIndex(formData.contract_range)}
+                      onChange={(index) => updateFormData('contract_range', getContractRangeValue(index))}
+                      min={0}
+                      max={3}
+                      step={1}
                       required
                       maxW="100%"
-                      formatValue={formatContractRange}
+                      formatValue={(index) => contractRangeLabels[index]}
                     />
                     <Text fontSize="xs" color="#666" mt="1">
                       This is used to match publicly published tenders
@@ -1057,6 +1078,30 @@ export default function ProfilePage() {
                     {errors.contract_range && (
                       <Text fontSize="xs" color="red.500" mt="1">{errors.contract_range}</Text>
                     )}
+                    <InputField
+                      label="Custom contract value (optional)"
+                      type="number"
+                      inputMode="numeric"
+                      min={CONTRACT_VALUE_MIN}
+                      max={CONTRACT_VALUE_MAX}
+                      step={1}
+                      placeholder="e.g. 750000"
+                      value={formData.custom_contract_range}
+                      onChange={(e) => {
+                        const raw = e.target.value
+                        if (raw === '') {
+                          updateFormData('custom_contract_range', '')
+                          return
+                        }
+                        const digitsOnly = raw.replace(/\D/g, '')
+                        updateFormData('custom_contract_range', digitsOnly === '' ? '' : digitsOnly)
+                      }}
+                      invalid={!!errors.custom_contract_range}
+                      errorText={errors.custom_contract_range}
+                    />
+                    <Text fontSize="xs" color="#666" mt="1">
+                      Enter a specific value in EUR (€0 – €50,000,000)
+                    </Text>
                   </Box>
               </VStack>
             </Box>
@@ -1070,13 +1115,13 @@ export default function ProfilePage() {
       label: 'Company Details',
       leftIcon: <LuGlobe />,
       content: (
-        <Box p="6">
+        <Box p={{ base: "6", md: "8" }}>
           <VStack gap="5" align="stretch">
             {/* Section Header */}
             <Box mb="2">
               <HStack gap="2" alignItems="center" mb="2">
                 <Heading 
-                  size="lg" 
+                  size="xl" 
                   fontWeight="700"
                   style={{ 
                     background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
@@ -1121,7 +1166,10 @@ export default function ProfilePage() {
                   {/* Inline status selectors for selected certifications */}
                   {companyCertifications && companyCertifications.length > 0 && (
                     <Box mt="4" p="4" bg="#f9fafb" borderRadius="md" borderWidth="1px" borderColor="#e5e7eb">
-                      <VStack gap="3" align="stretch">
+                      <VStack gap="4" align="stretch">
+                        <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
+                          Certification detail
+                        </Text>
                         {companyCertifications?.map((cert) => {
                           const certInfo = certifications.find(c => c.id === cert.certification_id)
                           const isEquivalent = certInfo?.is_equivalent || false
@@ -1261,13 +1309,13 @@ export default function ProfilePage() {
       label: 'Portfolio',
       leftIcon: <LuBriefcase />,
       content: (
-        <Box p="6">
-          <VStack gap="4" align="stretch">
+        <Box p={{ base: "6", md: "8" }}>
+          <VStack gap="5" align="stretch">
             <Box mb="2" display="flex" justifyContent="space-between" alignItems="flex-start" gap="4">
               <Box flex="1">
                 <HStack gap="2" alignItems="center" mb="2">
                   <Heading
-                    size="lg"
+                    size="xl"
                     fontWeight="700"
                     display="flex"
                     alignItems="center"
@@ -1318,7 +1366,7 @@ export default function ProfilePage() {
                 <LuPlus />
               </IconButton>
             </Box>
-            <VStack gap="3" align="stretch">
+            <VStack gap="4" align="stretch">
               {portfolios
                 .map((portfolio, index) => ({ portfolio, index }))
                 .filter(({ portfolio }) => !portfolio.isDelete)
@@ -1394,7 +1442,7 @@ export default function ProfilePage() {
                         </Box>
                         <VStack gap="5" align="stretch">
                           <Box>
-                            <Text fontSize="xs" fontWeight="600" mb="3" textTransform="uppercase" letterSpacing="wide" color="#6b7280">
+                            <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
                               Basic Information
                             </Text>
                             <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
@@ -1451,7 +1499,7 @@ export default function ProfilePage() {
                             </Box>
                           </Box>
                           <Box>
-                            <Text fontSize="xs" fontWeight="600" mb="3" textTransform="uppercase" letterSpacing="wide" color="#6b7280">
+                            <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
                               Project Details
                             </Text>
                             <VStack gap="4" align="stretch">
@@ -1490,8 +1538,26 @@ export default function ProfilePage() {
       label: 'Change Password',
       leftIcon: <LuLock />,
       content: (
-        <Box p="4">
-          <VStack gap="4" align="stretch">
+        <Box p={{ base: "6", md: "8" }}>
+          <VStack gap="5" align="stretch">
+            {/* Section Header */}
+            <Box mb="2">
+              <Heading
+                size="xl"
+                fontWeight="700"
+                style={{
+                  background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text"
+                }}
+              >
+                Change Password
+              </Heading>
+              <Text fontSize="sm" color="#666" mt="1">
+                Update your account password
+              </Text>
+            </Box>
             <Box
               borderRadius="xl"
               p="5"
@@ -1612,7 +1678,7 @@ export default function ProfilePage() {
       position="relative"
       display="flex"
       justifyContent="center"
-      p={6}
+      p={3}
       style={{
         background: "linear-gradient(135deg, #f7f7f7 0%, #efefef 50%, #fafafa 100%)",
       }}
@@ -1645,11 +1711,11 @@ export default function ProfilePage() {
         }}
       />
 
-      <Box w="full" maxW="7xl" mx="auto" position="relative" zIndex={1}>
+      <Box w="full" maxW="900px" mx="auto" position="relative" zIndex={1}>
         {/* Header Section */}
         <Box mb="6" textAlign="left">
           <HStack gap="3" mb="3" align="center">
-            <Box
+            {/* <Box
               w="48px"
               h="48px"
               borderRadius="xl"
@@ -1662,8 +1728,8 @@ export default function ProfilePage() {
               }}
             >
               <LuSettings style={{ width: "24px", height: "24px", color: "white" }} />
-            </Box>
-            <Heading
+            </Box> */}
+            {/* <Heading
               size="2xl"
               fontWeight="700"
               style={{
@@ -1674,9 +1740,9 @@ export default function ProfilePage() {
               }}
             >
               Profile Settings
-            </Heading>
+            </Heading> */}
           </HStack>
-          <Text fontSize="sm" color="#666">
+          <Text fontSize="lg" fontWeight="500" color="#666">
             Manage your company information and showcase your portfolio
           </Text>
         </Box>
@@ -1699,7 +1765,7 @@ export default function ProfilePage() {
             borderBottomWidth="1px"
             borderBottomStyle="solid"
             borderBottomColor="#efefef"
-            px="6"
+            px={{ base: "6", md: "8" }}
             pt="4"
             pb="0"
             bg="white"
@@ -1710,7 +1776,7 @@ export default function ProfilePage() {
               onValueChange={(details) => setActiveTab(details.value)}
               variant="line"
               colorScheme="primary"
-              size="lg"
+              size="md"
             />
           </Box>
 
@@ -1719,7 +1785,7 @@ export default function ProfilePage() {
             borderTopWidth="1px"
             borderTopStyle="solid"
             borderTopColor="#efefef"
-            px="6"
+            px={{ base: "6", md: "8" }}
             py="4"
             display="flex"
             alignItems="center"

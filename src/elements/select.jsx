@@ -29,6 +29,9 @@ export const SelectField = React.forwardRef((props, ref) => {
     ...rest
   } = props
 
+  // Get groupBy function from props
+  const { groupBy, ...comboboxProps } = rest
+
   const [inputValue, setInputValue] = React.useState('')
 
   // Filter items based on input value
@@ -48,8 +51,9 @@ export const SelectField = React.forwardRef((props, ref) => {
         items: filteredItems,
         itemToString,
         itemToValue,
+        ...(groupBy && { groupBy }),
       }),
-    [filteredItems, itemToString, itemToValue]
+    [filteredItems, itemToString, itemToValue, groupBy]
   )
 
   // Convert value array to single value for Combobox
@@ -69,6 +73,26 @@ export const SelectField = React.forwardRef((props, ref) => {
     setInputValue(details.inputValue || '')
   }, [])
 
+
+
+  // In controlled mode (value provided), don't pass defaultValue to avoid conflicts
+  const rootProps = {
+    ref,
+    collection,
+    size,
+    width,
+    positioning,
+    onValueChange: handleValueChange,
+    onInputValueChange: handleInputChange,
+    disabled,
+    ...comboboxProps,
+  }
+  if (comboboxValue != null && comboboxValue.length >= 0) {
+    rootProps.value = comboboxValue
+  } else if (defaultValue != null) {
+    rootProps.defaultValue = defaultValue
+  }
+
   return (
     <Box>
       {label && (
@@ -77,19 +101,7 @@ export const SelectField = React.forwardRef((props, ref) => {
           {required && <Text as="span" color="red.500" ml="1">*</Text>}
         </Text>
       )}
-      <Combobox.Root
-        ref={ref}
-        collection={collection}
-        size={size}
-        width={width}
-        positioning={positioning}
-        value={comboboxValue}
-        defaultValue={defaultValue}
-        onValueChange={handleValueChange}
-        onInputValueChange={handleInputChange}
-        disabled={disabled}
-        {...rest}
-      >
+      <Combobox.Root {...rootProps}>
         <Combobox.Control bg="white" borderColor={invalid ? "red.500" : undefined}>
           <Combobox.Input placeholder={placeholder} bg="white" />
           <Combobox.IndicatorGroup>
@@ -100,13 +112,32 @@ export const SelectField = React.forwardRef((props, ref) => {
         <Portal>
           <Combobox.Positioner>
             <Combobox.Content>
-              <Combobox.Empty>No results found</Combobox.Empty>
-              {collection.items.map((item) => (
-                <Combobox.Item item={item} key={item.id || item.value}>
-                  {item.name || itemToString(item)}
-                  <Combobox.ItemIndicator />
-                </Combobox.Item>
-              ))}
+              {groupBy && collection.group ? (
+                <>
+                  {collection.group().map(([category, groupItems]) => (
+                    <Combobox.ItemGroup key={category}>
+                      <Combobox.ItemGroupLabel  fontWeight="600" className="!text-black">{category}</Combobox.ItemGroupLabel>
+                      {groupItems.map((item) => (
+                        <Combobox.Item  item={item} key={item.id || item.value}>
+                          {item?.name || itemToString(item)}
+                          <Combobox.ItemIndicator />
+                        </Combobox.Item>
+                      ))}
+                    </Combobox.ItemGroup>
+                  ))}
+                  <Combobox.Empty>No results found</Combobox.Empty>
+                </>
+              ) : (
+                <Combobox.ItemGroup>
+                  {collection.items.map((item) => (
+                    <Combobox.Item item={item} key={item.id || item.value}>
+                      {item.name || itemToString(item)}
+                      <Combobox.ItemIndicator />
+                    </Combobox.Item>
+                  ))}
+                  <Combobox.Empty>No results found</Combobox.Empty>
+                </Combobox.ItemGroup>
+              )}
             </Combobox.Content>
           </Combobox.Positioner>
         </Portal>
