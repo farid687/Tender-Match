@@ -569,8 +569,9 @@ export default function OnboardingPage() {
           }
         }
         
-        if (!portfolio.value_band || (typeof portfolio.value_band !== 'number' && (!portfolio.value_band || portfolio.value_band.toString().trim() === ''))) {
-          newPortfolioErrors[`portfolio_${index}_value_band`] = 'Project value range is required'
+        const valueBandNum = typeof portfolio.value_band === 'number' ? portfolio.value_band : parseCustomContractRange(portfolio.value_band)
+        if (valueBandNum == null || valueBandNum < CONTRACT_VALUE_MIN || valueBandNum > CONTRACT_VALUE_MAX) {
+          newPortfolioErrors[`portfolio_${index}_value_band`] = 'Enter a project value (use the slider or enter a value between €0 and €50m)'
         }
       }
       // If no title, portfolio is considered empty and not validated (optional)
@@ -620,7 +621,7 @@ export default function OnboardingPage() {
       title: portfolio.title,
       client_type: portfolio.client_type || null,
       year: portfolio.year || null,
-      value_band: portfolio.value_band || null,
+      value_band: portfolio.value_band ?? null,
       description: portfolio.description || null,
       cpvs: Array.isArray(portfolio.cpvs) && portfolio.cpvs.length > 0 ? portfolio.cpvs : null,
       company_id: companyId,
@@ -811,10 +812,12 @@ export default function OnboardingPage() {
   if (company?.is_onboarded) {
     return (
       <Box 
-        minH="100vh" 
+        minH={{ base: "100dvh", lg: "100vh" }}
         display="flex" 
         alignItems="center" 
         justifyContent="center" 
+        px={{ base: 3, sm: 0 }}
+        py={{ base: 5, md: 6 }}
        
         style={{
           background: "linear-gradient(135deg, #f7f7f7 0%, #efefef 50%, #fafafa 100%)",
@@ -824,10 +827,10 @@ export default function OnboardingPage() {
         {/* Decorative background elements */}
         <Box
           position="absolute"
-          top="10%"
-          left="10%"
-          w="300px"
-          h="300px"
+          top="5%"
+          left="5%"
+          w={{ base: "160px", sm: "220px", md: "300px" }}
+          h={{ base: "160px", sm: "220px", md: "300px" }}
           borderRadius="full"
           style={{
             background: "linear-gradient(135deg, rgba(76, 187, 23, 0.1) 0%, rgba(31, 106, 225, 0.1) 100%)",
@@ -837,10 +840,10 @@ export default function OnboardingPage() {
         />
         <Box
           position="absolute"
-          bottom="10%"
-          right="10%"
-          w="250px"
-          h="250px"
+          bottom="5%"
+          right="5%"
+          w={{ base: "120px", sm: "180px", md: "250px" }}
+          h={{ base: "120px", sm: "180px", md: "250px" }}
           borderRadius="full"
           style={{
             background: "linear-gradient(135deg, rgba(31, 106, 225, 0.1) 0%, rgba(107, 78, 255, 0.1) 100%)",
@@ -857,8 +860,8 @@ export default function OnboardingPage() {
         >
           <Box
             bg="white"
-            p="10"
-            borderRadius="2xl"
+            p={{ base: "6", sm: "8", md: "10" }}
+            borderRadius={{ base: "xl", md: "2xl" }}
             boxShadow="0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)"
             textAlign="center"
             style={{
@@ -922,23 +925,24 @@ export default function OnboardingPage() {
 
   return (
     <Box 
-      minH="100vh" 
+      minH={{ base: "100dvh", lg: "100vh" }}
       display="flex" 
       alignItems="center" 
       justifyContent="center" 
-       p={6}
+      p={{ base: 3, sm: 4, md: 6 }}
+      overflowX="hidden"
       style={{
         background: "linear-gradient(135deg, #f7f7f7 0%, #efefef 50%, #fafafa 100%)",
         position: "relative"
       }}
     >
-      {/* Decorative background elements */}
+      {/* Decorative background elements - smaller on mobile */}
       <Box
         position="absolute"
-        top="10%"
-        left="10%"
-        w="300px"
-        h="300px"
+        top="5%"
+        left="5%"
+        w={{ base: "160px", sm: "220px", md: "300px" }}
+        h={{ base: "160px", sm: "220px", md: "300px" }}
         borderRadius="full"
         style={{
           background: "linear-gradient(135deg, rgba(31, 106, 225, 0.1) 0%, rgba(107, 78, 255, 0.1) 100%)",
@@ -948,10 +952,10 @@ export default function OnboardingPage() {
       />
       <Box
         position="absolute"
-        bottom="10%"
-        right="10%"
-        w="250px"
-        h="250px"
+        bottom="5%"
+        right="5%"
+        w={{ base: "120px", sm: "180px", md: "250px" }}
+        h={{ base: "120px", sm: "180px", md: "250px" }}
         borderRadius="full"
         style={{
           background: "linear-gradient(135deg, rgba(107, 78, 255, 0.1) 0%, rgba(31, 106, 225, 0.1) 100%)",
@@ -965,16 +969,17 @@ export default function OnboardingPage() {
         maxW="900px" 
         position="relative"
         zIndex={1}
+        minW={0}
       >
-        {/* Progress Indicator - Elegant */}
-        <Box mb="6">
-          <Box display="flex" alignItems="center" justifyContent="center">
+        {/* Progress Indicator - compact on mobile */}
+        <Box mb={{ base: 4, md: 6 }}>
+          <Box display="flex" alignItems="center" justifyContent="center" flexWrap={{ base: "wrap", sm: "nowrap" }} gap={{ base: 2, md: 0 }}>
             {steps.map((step, index) => (
               <Box key={step.id} display="flex" alignItems="center">
                 <Box display="flex" flexDirection="column" alignItems="center" position="relative" zIndex={10}>
                   <Box
-                    w="48px"
-                    h="48px"
+                    w={{ base: "40px", sm: "44px", md: "48px" }}
+                    h={{ base: "40px", sm: "44px", md: "48px" }}
                     borderRadius="full"
                     display="flex"
                     alignItems="center"
@@ -994,16 +999,16 @@ export default function OnboardingPage() {
                     }}
                   >
                     {currentStep > step.id ? (
-                      <LuCheck style={{ width: "20px", height: "20px" }} />
+                      <LuCheck style={{ width: "18px", height: "18px" }} />
                     ) : (
-                      <Box style={{ width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Box style={{ width: "18px", height: "18px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         {step.icon}
                       </Box>
                     )}
                   </Box>
-                  <Box mt="2" textAlign="center" maxW="120px">
+                  <Box mt="1" textAlign="center" maxW={{ base: "80px", sm: "100px", md: "120px" }}>
                     <Text
-                      fontSize="xs"
+                      fontSize={{ base: "2xs", sm: "xs" }}
                       fontWeight="600"
                       transition="all 0.3s"
                       style={{
@@ -1015,6 +1020,7 @@ export default function OnboardingPage() {
                     <Text
                       fontSize="2xs"
                       mt="0.5"
+                      display={{ base: "none", sm: "block" }}
                       style={{
                         color: currentStep >= step.id ? "#666" : "#9ca3af"
                       }}
@@ -1024,10 +1030,10 @@ export default function OnboardingPage() {
                   </Box>
                 </Box>
                 {index < steps.length - 1 && (
-                  <Box position="relative" mx="4" display="flex" alignItems="center">
+                  <Box position="relative" mx={{ base: 2, sm: 3, md: 4 }} display={{ base: "none", sm: "flex" }} alignItems="center">
                     <Box
                       h="2px"
-                      w="80px"
+                      w={{ base: "24px", md: "80px" }}
                       borderRadius="full"
                       overflow="hidden"
                       bg="#efefef"
@@ -1061,7 +1067,7 @@ export default function OnboardingPage() {
           }}
         >
           {isSubmitting && <LoadingOverlay message="Saving your information..." />}
-          <Box p={{ base: "6", md: "8" }} data-protonpass-form="">
+          <Box p={{ base: "4", sm: "5", md: "6", lg: "8" }} data-protonpass-form="">
             {/* Progress Bar - Based on mandatory fields */}
             <Box mb="4" >
               <Box mb="2" display="flex" justifyContent="space-between" alignItems="center">
@@ -1223,7 +1229,7 @@ export default function OnboardingPage() {
                           Company size
                           <Text as="span" color="red.500" ml="1">*</Text>
                         </Text>
-                        <Box display="grid" gridTemplateColumns="repeat(4, 1fr)" gap="3" mt="2">
+                        <Box display="grid" gridTemplateColumns={{ base: "1fr", sm: "repeat(4, 1fr)" }} gap={{ base: 2, md: 3 }} mt="2">
                           {[
                             { id: 'small', label: 'Small', range: '1 to 10' },
                             { id: 'medium', label: 'Medium', range: '10 to 50' },
@@ -1241,8 +1247,9 @@ export default function OnboardingPage() {
                                 flexDirection="column"
                                 alignItems="center"
                                 justifyContent="center"
-                                p="4"
+                                p={{ base: "3", md: "4" }}
                                 w="100%"
+                                minW={0}
                                 borderRadius="xl"
                                 borderWidth="2px"
                                 borderStyle="solid"
@@ -1263,8 +1270,8 @@ export default function OnboardingPage() {
                                 }}
                               >
                                 <Box
-                                  fontSize="xl"
-                                  mb="1"
+                                  fontSize={{ base: "lg", md: "xl" }}
+                                  mb="0.5"
                                   color={isSelected ? '#1f6ae1' : '#333333'}
                                   transition="all 0.2s"
                                 >
@@ -1274,13 +1281,17 @@ export default function OnboardingPage() {
                                   fontWeight="semibold"
                                   fontSize="xs"
                                   color={isSelected ? '#1f6ae1' : '#1c1c1c'}
-                                  mb="0.5"
+                                  mb="0"
+                                  textAlign="center"
+                                  whiteSpace="normal"
+                                  wordBreak="break-word"
                                 >
                                   {size.label}
                                 </Text>
                                 <Text
                                   fontSize="2xs"
                                   color={isSelected ? '#1f6ae1' : '#333333'}
+                                  textAlign="center"
                                 >
                                   {size.range}
                                 </Text>
@@ -1464,8 +1475,8 @@ export default function OnboardingPage() {
                                   
                                   return (
                                     <Box key={cert.certification_id} p="3" bg="white" borderRadius="md" borderWidth="1px" borderColor="#e5e7eb">
-                                      <HStack gap="3" align="flex-start">
-                                        <Box flex="1">
+                                      <HStack gap="3" align="flex-start" flexDirection={{ base: "column", md: "row" }}>
+                                        <Box flex="1" w={{ base: "full", md: "auto" }}>
                                           <Text fontSize="sm" fontWeight="600" mb="1">
                                             {certInfo?.name || 'Unknown Certification'}
                                             {certInfo?.code && (
@@ -1480,7 +1491,7 @@ export default function OnboardingPage() {
                                             </Text>
                                           )}
                                         </Box>
-                                        <Box minW="150px">
+                                        <Box minW={{ base: "full", md: "150px" }} w={{ base: "full", md: "auto" }}>
                                           <SelectField
                                             items={[
                                               { id: 'certified', name: 'Certified' },
@@ -1753,7 +1764,7 @@ export default function OnboardingPage() {
                                     />
                                   </Box>
                                 </Box>
-                                <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
+                                <Box>
                                   <YearPicker
                                     label="Project year"
                                     placeholder="Select year"
@@ -1767,22 +1778,30 @@ export default function OnboardingPage() {
                                     invalid={!!portfolioErrors[`portfolio_${index}_year`]}
                                     errorText={portfolioErrors[`portfolio_${index}_year`]}
                                   />
-                                  <Box>
-                                    <SliderField
-                                      label="Project value range"
-                                      value={typeof portfolio.value_band === 'number' ? portfolio.value_band : parseContractRange(portfolio.value_band)}
-                                      onChange={(value) => updatePortfolio(index, 'value_band', value)}
-                                      min={50000}
-                                      max={5000000}
-                                      step={50000}
-                                      required
-                                      maxW="100%"
-                                      formatValue={formatValueBand}
-                                    />
-                                    {portfolioErrors[`portfolio_${index}_value_band`] && (
-                                      <Text fontSize="xs" color="red.500" mt="1">{portfolioErrors[`portfolio_${index}_value_band`]}</Text>
-                                    )}
-                                  </Box>
+                                </Box>
+                                <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr auto 1fr" }} gap="4" alignItems="start">
+                                  <SliderField
+                                    label="Project value range"
+                                    value={portfolio.value_band != null ? Math.min(5000000, Math.max(50000, Number(portfolio.value_band))) : 50000}
+                                    onChange={(value) => updatePortfolio(index, 'value_band', value)}
+                                    min={50000}
+                                    max={5000000}
+                                    step={50000}
+                                    maxW="100%"
+                                    formatValue={formatValueBand}
+                                  />
+                                  <Text as="span" alignSelf="center" fontSize="sm" fontWeight="medium" color="gray.600">OR</Text>
+                                  <InputField
+                                    label="Enter value manually (€)"
+                                    placeholder="e.g. 250000 or 1.5m"
+                                    value={portfolio.value_band != null ? String(portfolio.value_band) : ''}
+                                    onChange={(e) => {
+                                      const v = parseCustomContractRange(e.target.value)
+                                      updatePortfolio(index, 'value_band', v ?? null)
+                                    }}
+                                    invalid={!!portfolioErrors[`portfolio_${index}_value_band`]}
+                                    errorText={portfolioErrors[`portfolio_${index}_value_band`]}
+                                  />
                                 </Box>
                                 <Box>
                                   <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
@@ -1819,27 +1838,29 @@ export default function OnboardingPage() {
               </Box>
             )}
 
-            {/* Navigation Buttons - Elegant */}
+            {/* Navigation Buttons - stack on mobile */}
             <Box
               borderTopWidth="1px"
               borderTopStyle="solid"
               borderTopColor="#efefef"
-              px={{ base: "6", md: "8" }}
-              py="4"
+              px={{ base: "3", sm: "4", md: "6", lg: "8" }}
+              py={{ base: "3", md: "4" }}
               mt="4"
               display="flex"
               alignItems="center"
               justifyContent="space-between"
+              flexDirection={{ base: "column", sm: "row" }}
               flexWrap="wrap"
               gap="3"
               bg="#fafafa"
             >
-              <Box display="flex" alignItems="center" gap="3">
+              <Box display="flex" alignItems="center" gap={{ base: 2, md: 3 }} order={{ base: 2, sm: 1 }}>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleBack}
                   disabled={isFirstStep}
+                  size={{ base: "sm", md: "md" }}
                   style={{
                     borderColor: "#d1d5db",
                     color: "#374151"
@@ -1859,6 +1880,7 @@ export default function OnboardingPage() {
                   type="button"
                   variant="ghost"
                   onClick={() => router.push('/app/profile')}
+                  size={{ base: "sm", md: "md" }}
                   style={{
                     color: "#6b7280"
                   }}
@@ -1871,7 +1893,7 @@ export default function OnboardingPage() {
                   Skip for now
                 </Button>
               </Box>
-              <Box display="flex" alignItems="center" gap="2">
+              <Box display="flex" alignItems="center" gap="2" order={{ base: 3, sm: 2 }} alignSelf={{ base: "center", sm: "auto" }}>
                 <Box
                   w="6px"
                   h="6px"
@@ -1885,12 +1907,14 @@ export default function OnboardingPage() {
                   {steps.length} steps · ~5 minutes
                 </Text>
               </Box>
+              <Box order={{ base: 1, sm: 3 }} w={{ base: "full", sm: "auto" }}>
               {isLastStep ? (
                 <Button
                   type="button"
                   onClick={handleSubmit}
                   disabled={isSubmitting}
                   size="md"
+                  w={{ base: "full", sm: "auto" }}
                   style={{
                     background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
                     color: "white",
@@ -1920,6 +1944,7 @@ export default function OnboardingPage() {
                   type="button"
                   onClick={handleNext}
                   size="md"
+                  w={{ base: "full", sm: "auto" }}
                   style={{
                     background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
                     color: "white",
@@ -1941,6 +1966,7 @@ export default function OnboardingPage() {
                   <LuArrowRight style={{ width: "16px", height: "16px", marginLeft: "8px" }} />
                 </Button>
               )}
+              </Box>
             </Box>
           </Box>
         </Box>

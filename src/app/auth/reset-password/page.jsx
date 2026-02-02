@@ -52,12 +52,13 @@ export default function ResetPasswordPage() {
   if (sent) {
     return (
       <Box 
-        minH="100vh" 
+        minH={{ base: "100dvh", lg: "100vh" }}
         display="flex" 
         alignItems="center" 
         justifyContent="center" 
-        px="4"
-        py="8"
+        px={{ base: "3", sm: "4" }}
+        py={{ base: "5", sm: "6", md: "8" }}
+        overflowX="hidden"
         style={{
           background: "linear-gradient(135deg, #f7f7f7 0%, #efefef 50%, #fafafa 100%)",
           position: "relative"
@@ -66,10 +67,10 @@ export default function ResetPasswordPage() {
         {/* Decorative background elements */}
         <Box
           position="absolute"
-          top="10%"
-          left="10%"
-          w="300px"
-          h="300px"
+          top="5%"
+          left="5%"
+          w={{ base: "180px", sm: "240px", md: "300px" }}
+          h={{ base: "180px", sm: "240px", md: "300px" }}
           borderRadius="full"
           style={{
             background: "linear-gradient(135deg, rgba(31, 106, 225, 0.1) 0%, rgba(107, 78, 255, 0.1) 100%)",
@@ -79,10 +80,10 @@ export default function ResetPasswordPage() {
         />
         <Box
           position="absolute"
-          bottom="10%"
-          right="10%"
-          w="250px"
-          h="250px"
+          bottom="5%"
+          right="5%"
+          w={{ base: "140px", sm: "200px", md: "250px" }}
+          h={{ base: "140px", sm: "200px", md: "250px" }}
           borderRadius="full"
           style={{
             background: "linear-gradient(135deg, rgba(76, 187, 23, 0.1) 0%, rgba(31, 106, 225, 0.1) 100%)",
@@ -99,8 +100,8 @@ export default function ResetPasswordPage() {
         >
           <Box
             bg="white"
-            p={{ base: "8", md: "10" }}
-            borderRadius="2xl"
+            p={{ base: "5", sm: "6", md: "8", lg: "10" }}
+            borderRadius={{ base: "xl", md: "2xl" }}
             boxShadow="0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)"
             textAlign="center"
             style={{
@@ -174,12 +175,13 @@ export default function ResetPasswordPage() {
 
   return (
     <Box 
-      minH="100vh" 
+      minH={{ base: "100dvh", lg: "100vh" }}
       display="flex" 
       alignItems="center" 
       justifyContent="center" 
-      px="4"
-      py="8"
+      px={{ base: "3", sm: "4" }}
+      py={{ base: "5", sm: "6", md: "8" }}
+      overflowX="hidden"
       style={{
         background: "linear-gradient(135deg, #f7f7f7 0%, #efefef 50%, #fafafa 100%)",
         position: "relative"
@@ -188,10 +190,10 @@ export default function ResetPasswordPage() {
       {/* Decorative background elements */}
       <Box
         position="absolute"
-        top="10%"
-        left="10%"
-        w="300px"
-        h="300px"
+        top="5%"
+        left="5%"
+        w={{ base: "180px", sm: "240px", md: "300px" }}
+        h={{ base: "180px", sm: "240px", md: "300px" }}
         borderRadius="full"
         style={{
           background: "linear-gradient(135deg, rgba(31, 106, 225, 0.1) 0%, rgba(107, 78, 255, 0.1) 100%)",
@@ -201,10 +203,10 @@ export default function ResetPasswordPage() {
       />
       <Box
         position="absolute"
-        bottom="10%"
-        right="10%"
-        w="250px"
-        h="250px"
+        bottom="5%"
+        right="5%"
+        w={{ base: "140px", sm: "200px", md: "250px" }}
+        h={{ base: "140px", sm: "200px", md: "250px" }}
         borderRadius="full"
         style={{
           background: "linear-gradient(135deg, rgba(107, 78, 255, 0.1) 0%, rgba(31, 106, 225, 0.1) 100%)",
@@ -221,14 +223,14 @@ export default function ResetPasswordPage() {
       >
         <Box
           bg="white"
-          p={{ base: "8", md: "10" }}
-          borderRadius="2xl"
+          p={{ base: "5", sm: "6", md: "8", lg: "10" }}
+          borderRadius={{ base: "xl", md: "2xl" }}
           boxShadow="0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)"
           style={{
             backdropFilter: "blur(10px)",
           }}
         >
-          <VStack gap="8" align="stretch">
+          <VStack gap={{ base: "6", md: "8" }} align="stretch">
             <Link 
               href="/auth/sign-in" 
               style={{ 
@@ -256,7 +258,7 @@ export default function ResetPasswordPage() {
 
             <Box textAlign="center">
               <Heading 
-                size="2xl" 
+                size={{ base: "xl", sm: "2xl" }}
                 mb="2"
                 fontWeight="700"
                 style={{ 

@@ -56,17 +56,19 @@ export function Header() {
       position="sticky"
       top="0"
       zIndex="1000"
-      py="6"
+      py={{ base: "4", md: "6" }}
       style={{
         background: "linear-gradient(180deg, #ffffff 0%, #fafafa 100%)",
         boxShadow: "0 2px 12px rgba(0, 0, 0, 0.04)"
       }}
     >
-      <Box maxW="7xl" mx="auto" px={{ base: 4, md: 6 }}>
-        <HStack justify="space-between" align="center">
+      <Box maxW="7xl" mx="auto" px={{ base: 3, sm: 4, md: 6 }}>
+        <HStack justify="space-between" align="center" gap={{ base: 2, md: 4 }} flexWrap="nowrap">
           <Heading 
-            size="2xl" 
+            size={{ base: "lg", sm: "xl", md: "2xl" }}
             fontWeight="700"
+            noOfLines={1}
+            minW={0}
             style={{
               background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
               WebkitBackgroundClip: "text",
@@ -77,7 +79,7 @@ export function Header() {
             {pageName} 
           </Heading>
           
-          <HStack gap={4}>
+          <HStack gap={{ base: 2, md: 4 }} flexShrink={0}>
             {/* User Menu with Avatar */}
             <Menu
               trigger={

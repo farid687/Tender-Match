@@ -69,7 +69,7 @@ export const MultiSelectField = React.forwardRef((props, ref) => {
   }, [value, items, itemToValue])
 
   return (
-    <Box>
+    <Box minW={0} overflow="visible">
       {label && (
         <Text mb="1" fontWeight="medium" fontSize="sm">
           {label}
@@ -100,9 +100,19 @@ export const MultiSelectField = React.forwardRef((props, ref) => {
         </Combobox.Control>
 
         {selectedItems.length > 0 && (
-          <Wrap gap="2" mt={"1"}>
+          <Wrap gap="2" mt="2" overflow="visible" minW={0}>
             {selectedItems.map((item) => (
-              <Badge key={itemToValue(item)}  variant="solid" py={"1"} className="!bg-white !text-black border-mixin shadow-md " style={{ '--border-width': '1px', '--border-color': '#1f6ae1' }}>
+              <Badge
+                key={itemToValue(item)}
+                variant="solid"
+                py="1"
+                px="2"
+                maxW="100%"
+                whiteSpace="normal"
+                wordBreak="break-word"
+                className="!bg-white !text-black border-mixin shadow-md"
+                style={{ '--border-width': '1px', '--border-color': '#1f6ae1' }}
+              >
                 {item?.name || itemToString(item)}
               </Badge>
             ))}

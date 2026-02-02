@@ -1,6 +1,6 @@
 'use client'
 
-import { Tabs } from '@chakra-ui/react'
+import { Tabs, Box } from '@chakra-ui/react'
 import * as React from 'react'
 
 export const TabButton = React.forwardRef(function TabButton(props, ref) {
@@ -35,22 +35,25 @@ export const TabButton = React.forwardRef(function TabButton(props, ref) {
       {...tabsProps}
       {...rest}
     >
-      <Tabs.List>
-        {tabs.map((tab, idx) => {
-          const tabValue = tab.value || tab.id || `tab-${idx}`
-          return (
-            <Tabs.Trigger
-              key={tabValue}
-              value={tabValue}
-              disabled={tab.disabled}
-            >
-              {tab.leftIcon}
-              {tab.label}
-              {tab.rightIcon}
-            </Tabs.Trigger>
-          )
-        })}
-      </Tabs.List>
+      <Box overflowX="auto" overflowY="hidden" className="scrollbar-thin" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <Tabs.List minW="min-content" flexWrap="nowrap">
+          {tabs.map((tab, idx) => {
+            const tabValue = tab.value || tab.id || `tab-${idx}`
+            return (
+              <Tabs.Trigger
+                key={tabValue}
+                value={tabValue}
+                disabled={tab.disabled}
+                fontSize={{ base: 'xs', sm: 'xs', md: 'md' }}
+              >
+                {tab.leftIcon}
+                {tab.label}
+                {tab.rightIcon}
+              </Tabs.Trigger>
+            )
+          })}
+        </Tabs.List>
+      </Box>
       {tabs.map((tab, idx) => {
         const tabValue = tab.value || tab.id || `tab-${idx}`
         return (

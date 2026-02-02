@@ -497,7 +497,7 @@ export default function ProfilePage() {
           title: portfolioData.title,
           client_type: portfolioData.client_type || null,
           year: portfolioData.year || null,
-          value_band: portfolioData.value_band || null,
+          value_band: portfolioData.value_band ?? null,
           description: portfolioData.description || null,
           cpvs: Array.isArray(portfolioData.cpvs) && portfolioData.cpvs.length > 0 ? portfolioData.cpvs : null,
         })
@@ -520,7 +520,7 @@ export default function ProfilePage() {
       title: portfolio.title,
       client_type: portfolio.client_type || null,
       year: portfolio.year || null,
-      value_band: portfolio.value_band || null,
+      value_band: portfolio.value_band ?? null,
       description: portfolio.description || null,
       cpvs: Array.isArray(portfolio.cpvs) && portfolio.cpvs.length > 0 ? portfolio.cpvs : null,
       company_id: companyId,
@@ -614,8 +614,9 @@ export default function ProfilePage() {
         }
       }
 
-      if (!portfolio.value_band || (typeof portfolio.value_band !== 'number' && (!portfolio.value_band || portfolio.value_band.toString().trim() === ''))) {
-        newPortfolioErrors[`portfolio_${index}_value_band`] = 'Project value range is required'
+      const valueBandNum = typeof portfolio.value_band === 'number' ? portfolio.value_band : parseCustomContractRange(portfolio.value_band)
+      if (valueBandNum == null || valueBandNum < CONTRACT_VALUE_MIN || valueBandNum > CONTRACT_VALUE_MAX) {
+        newPortfolioErrors[`portfolio_${index}_value_band`] = 'Enter a project value (use the slider or enter a value between €0 and €50m)'
       }
     })
 
@@ -836,15 +837,15 @@ export default function ProfilePage() {
       id: 'company-info',
       value: 'company-info',
       label: 'Company Profile',
-      leftIcon: <LuBuilding2 />,
+      // leftIcon: <LuBuilding2 />,
       content: (
-        <Box p={{ base: "6", md: "8" }}>
+        <Box p={{ base: "3", md: "4" }}>
           <VStack gap="5" align="stretch">
             {/* Section Header */}
             <Box mb="2">
               <HStack gap="2" alignItems="center" mb="2">
                 <Heading 
-                  size="xl" 
+                  size={{ base: "lg", sm: "xl" }}
                   fontWeight="700"
                   style={{ 
                     background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
@@ -935,7 +936,7 @@ export default function ProfilePage() {
                   Company size
                   <Text as="span" color="red.500" ml="1">*</Text>
                 </Text>
-                <Box display="grid" gridTemplateColumns="repeat(4, 1fr)" gap="3" mt="2">
+                <Box display="grid" gridTemplateColumns={{ base: "1fr", sm: "repeat(4, 1fr)" }} gap={{ base: 2, md: 3 }} mt="2">
                   {[
                     { id: 'small', label: 'Small', range: '1 to 10' },
                     { id: 'medium', label: 'Medium', range: '10 to 50' },
@@ -955,6 +956,7 @@ export default function ProfilePage() {
                         justifyContent="center"
                         p="3"
                         w="100%"
+                        minW={0}
                         borderRadius="xl"
                         borderWidth="2px"
                         borderStyle="solid"
@@ -987,12 +989,16 @@ export default function ProfilePage() {
                           fontSize="xs"
                           color={isSelected ? '#1f6ae1' : '#1c1c1c'}
                           mb="0"
+                          textAlign="center"
+                          whiteSpace="normal"
+                          wordBreak="break-word"
                         >
                           {size.label}
                         </Text>
                         <Text
                           fontSize="2xs"
                           color={isSelected ? '#1f6ae1' : '#333333'}
+                          textAlign="center"
                         >
                           {size.range}
                         </Text>
@@ -1113,15 +1119,15 @@ export default function ProfilePage() {
       id: 'company-details',
       value: 'company-details',
       label: 'Company Details',
-      leftIcon: <LuGlobe />,
+      // leftIcon: <LuGlobe />,
       content: (
-        <Box p={{ base: "6", md: "8" }}>
+        <Box p={{ base: "3", md: "4" }}>
           <VStack gap="5" align="stretch">
             {/* Section Header */}
             <Box mb="2">
               <HStack gap="2" alignItems="center" mb="2">
                 <Heading 
-                  size="xl" 
+                  size={{ base: "lg", sm: "xl" }}
                   fontWeight="700"
                   style={{ 
                     background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
@@ -1165,8 +1171,8 @@ export default function ProfilePage() {
                   
                   {/* Inline status selectors for selected certifications */}
                   {companyCertifications && companyCertifications.length > 0 && (
-                    <Box mt="4" p="4" bg="#f9fafb" borderRadius="md" borderWidth="1px" borderColor="#e5e7eb">
-                      <VStack gap="4" align="stretch">
+                    <Box  mt="4" p="3" bg="#f9fafb" borderRadius="md" borderWidth="1px" borderColor="#e5e7eb">
+                      <VStack gap="4"  align="stretch">
                         <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
                           Certification detail
                         </Text>
@@ -1176,8 +1182,8 @@ export default function ProfilePage() {
                           
                           return (
                             <Box key={cert.certification_id} p="3" bg="white" borderRadius="md" borderWidth="1px" borderColor="#e5e7eb">
-                              <HStack gap="3" align="flex-start">
-                                <Box flex="1">
+                              <HStack gap="3" align="flex-start" flexDirection={{ base: "column", md: "row" }}>
+                                <Box flex="1" w={{ base: "full", md: "auto" }}>
                                   <Text fontSize="sm" fontWeight="600" mb="1">
                                     {certInfo?.name || 'Unknown Certification'}
                                     {certInfo?.code && (
@@ -1192,7 +1198,7 @@ export default function ProfilePage() {
                                     </Text>
                                   )}
                                 </Box>
-                                <Box minW="150px">
+                                <Box minW={{ base: "full", md: "120px" }} w={{ base: "full", md: "auto" }}>
                                   <SelectField
                                     items={[
                                       { id: 'certified', name: 'Certified' },
@@ -1307,15 +1313,15 @@ export default function ProfilePage() {
       id: 'portfolio',
       value: 'portfolio',
       label: 'Portfolio',
-      leftIcon: <LuBriefcase />,
+      // leftIcon: <LuBriefcase />,
       content: (
-        <Box p={{ base: "6", md: "8" }}>
+        <Box p={{ base: "3", md: "4" }}>
           <VStack gap="5" align="stretch">
             <Box mb="2" display="flex" justifyContent="space-between" alignItems="flex-start" gap="4">
               <Box flex="1">
                 <HStack gap="2" alignItems="center" mb="2">
                   <Heading
-                    size="xl"
+                    size={{ base: "lg", sm: "xl" }}
                     fontWeight="700"
                     display="flex"
                     alignItems="center"
@@ -1467,7 +1473,7 @@ export default function ProfilePage() {
                               />
                             </Box>
                           </Box>
-                          <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
+                          <Box>
                             <YearPicker
                               label="Project year"
                               placeholder="Select year"
@@ -1481,22 +1487,30 @@ export default function ProfilePage() {
                               invalid={!!portfolioErrors[`portfolio_${index}_year`]}
                               errorText={portfolioErrors[`portfolio_${index}_year`]}
                             />
-                            <Box>
-                              <SliderField
-                                label="Project value range"
-                                value={typeof portfolio.value_band === 'number' ? portfolio.value_band : parseContractRange(portfolio.value_band)}
-                                onChange={(value) => updatePortfolio(index, 'value_band', value)}
-                                min={50000}
-                                max={5000000}
-                                step={50000}
-                                required
-                                maxW="100%"
-                                formatValue={formatValueBand}
-                              />
-                              {portfolioErrors[`portfolio_${index}_value_band`] && (
-                                <Text fontSize="xs" color="red.500" mt="1">{portfolioErrors[`portfolio_${index}_value_band`]}</Text>
-                              )}
-                            </Box>
+                          </Box>
+                          <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr auto 1fr" }} gap="4" alignItems="start">
+                            <SliderField
+                              label="Project value range"
+                              value={portfolio.value_band != null ? Math.min(5000000, Math.max(50000, Number(portfolio.value_band))) : 50000}
+                              onChange={(value) => updatePortfolio(index, 'value_band', value)}
+                              min={50000}
+                              max={5000000}
+                              step={50000}
+                              maxW="100%"
+                              formatValue={formatValueBand}
+                            />
+                            <Text as="span" alignSelf="center" fontSize="sm" fontWeight="medium" color="gray.600">OR</Text>
+                            <InputField
+                              label="Or enter value manually (€)"
+                              placeholder="e.g. 250000 or 1.5m"
+                              value={portfolio.value_band != null ? String(portfolio.value_band) : ''}
+                              onChange={(e) => {
+                                const v = parseCustomContractRange(e.target.value)
+                                updatePortfolio(index, 'value_band', v ?? null)
+                              }}
+                              invalid={!!portfolioErrors[`portfolio_${index}_value_band`]}
+                              errorText={portfolioErrors[`portfolio_${index}_value_band`]}
+                            />
                           </Box>
                           <Box>
                             <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
@@ -1536,14 +1550,14 @@ export default function ProfilePage() {
       id: 'change-password',
       value: 'change-password',
       label: 'Change Password',
-      leftIcon: <LuLock />,
+      // leftIcon: <LuLock />,
       content: (
-        <Box p={{ base: "6", md: "8" }}>
+        <Box p={{ base: "3", md: "4" }}>
           <VStack gap="5" align="stretch">
             {/* Section Header */}
             <Box mb="2">
               <Heading
-                size="xl"
+                size={{ base: "lg", sm: "xl" }}
                 fontWeight="700"
                 style={{
                   background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
@@ -1673,23 +1687,24 @@ export default function ProfilePage() {
 
   return (
     <Box
-      minH="90vh"
-      maxH={"auto"}
+      minH={{ base: "90dvh", lg: "90vh" }}
+      maxH="auto"
       position="relative"
       display="flex"
       justifyContent="center"
-      p={3}
+      p={{ base: "3", md: "4" }}
+      overflowX="hidden"
       style={{
         background: "linear-gradient(135deg, #f7f7f7 0%, #efefef 50%, #fafafa 100%)",
       }}
     >
-      {/* Decorative background elements */}
+      {/* Decorative background elements - smaller on mobile */}
       <Box
         position="absolute"
-        top="10%"
-        left="10%"
-        w="300px"
-        h="300px"
+        top="5%"
+        left="5%"
+        w={{ base: "160px", sm: "220px", md: "300px" }}
+        h={{ base: "160px", sm: "220px", md: "300px" }}
         borderRadius="full"
         style={{
           background: "linear-gradient(135deg, rgba(31, 106, 225, 0.1) 0%, rgba(107, 78, 255, 0.1) 100%)",
@@ -1699,10 +1714,10 @@ export default function ProfilePage() {
       />
       <Box
         position="absolute"
-        bottom="10%"
-        right="10%"
-        w="250px"
-        h="250px"
+        bottom="5%"
+        right="5%"
+        w={{ base: "120px", sm: "180px", md: "250px" }}
+        h={{ base: "120px", sm: "180px", md: "250px" }}
         borderRadius="full"
         style={{
           background: "linear-gradient(135deg, rgba(107, 78, 255, 0.1) 0%, rgba(31, 106, 225, 0.1) 100%)",
@@ -1711,10 +1726,10 @@ export default function ProfilePage() {
         }}
       />
 
-      <Box w="full" maxW="900px" mx="auto" position="relative" zIndex={1}>
+      <Box w="full" maxW="900px" mx="auto" position="relative" zIndex={1} minW={0}>
         {/* Header Section */}
-        <Box mb="6" textAlign="left">
-          <HStack gap="3" mb="3" align="center">
+        <Box mb={{ base: 4, md: 6 }} textAlign="left">
+          <HStack gap={{ base: 2, md: 3 }} mb={{ base: 2, md: 3 }} align="center">
             {/* <Box
               w="48px"
               h="48px"
@@ -1742,17 +1757,17 @@ export default function ProfilePage() {
               Profile Settings
             </Heading> */}
           </HStack>
-          <Text fontSize="lg" fontWeight="500" color="#666">
+          <Text fontSize={{ base: "sm", md: "lg" }} fontWeight="500" color="#666">
             Manage your company information and showcase your portfolio
           </Text>
         </Box>
 
-        {/* Profile Card with Tabs */}
+        {/* Profile Card with Tabs - overflow visible so multi-select chips aren't clipped */}
         <Box
           bg="white"
           borderRadius="2xl"
           boxShadow="0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)"
-          overflow="hidden"
+          overflow="visible"
           position="relative"
           style={{
             backdropFilter: "blur(10px)",
@@ -1760,13 +1775,13 @@ export default function ProfilePage() {
         >
           {isSubmitting && <LoadingOverlay message="Saving changes..." />}
           
-          {/* Tab Header */}
+          {/* Tab Header - scrollable on mobile */}
           <Box
             borderBottomWidth="1px"
             borderBottomStyle="solid"
             borderBottomColor="#efefef"
-            px={{ base: "6", md: "8" }}
-            pt="4"
+            px={{ base: "3", sm: "4", md: "6", lg: "8" }}
+            pt={{ base: "3", md: "4" }}
             pb="0"
             bg="white"
           >
@@ -1785,8 +1800,8 @@ export default function ProfilePage() {
             borderTopWidth="1px"
             borderTopStyle="solid"
             borderTopColor="#efefef"
-            px={{ base: "6", md: "8" }}
-            py="4"
+            px={{ base: "3", sm: "4", md: "6", lg: "8" }}
+            py={{ base: "3", md: "4" }}
             display="flex"
             alignItems="center"
             justifyContent="space-between"
@@ -1794,7 +1809,7 @@ export default function ProfilePage() {
             gap="3"
             bg="#fafafa"
           >
-            <Box display="flex" alignItems="center" gap="2">
+            <Box display="flex" alignItems="center" gap="2" flexShrink={0}>
               <Box
                 w="6px"
                 h="6px"
@@ -1813,6 +1828,7 @@ export default function ProfilePage() {
               onClick={handleSubmit}
               disabled={isSubmitting}
               size="md"
+              w={{ base: "full", sm: "auto" }}
               style={{
                 background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
                 color: "white",

@@ -19,6 +19,28 @@
 
 }
 
+/* Mobile-first: safe area and viewport */
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-top: env(safe-area-inset-top, 0);
+  overflow-x: hidden;
+}
+
+/* Touch-friendly minimum tap target height on coarse pointers */
+@media (pointer: coarse) {
+  button:not([disabled]):not(.no-tap-target),
+  a[href]:not(.no-tap-target) {
+    min-height: 44px;
+  }
+}
+
 /* Single mixin function for border - accepts width and color via CSS variables */
 @layer utilities {
   .border-mixin {
@@ -41,6 +63,19 @@
 
 .nl-map path.selected {
   fill: #1e3a8a; /* dark blue */
+}
+
+/* Horizontal scroll for tab lists - hide scrollbar on mobile, thin on desktop */
+.scrollbar-thin {
+  -ms-overflow-style: none;
+  scrollbar-width: thin;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
 }
 
 .nl-map path {

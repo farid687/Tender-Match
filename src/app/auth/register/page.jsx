@@ -75,24 +75,25 @@ export default function RegisterPage() {
 
   return (
     <Box 
-      minH="100vh" 
+      minH={{ base: "100dvh", lg: "100vh" }}
       display="flex" 
       alignItems="center" 
       justifyContent="center" 
-      px="4"
-      py="4"
+      px={{ base: "3", sm: "4" }}
+      py={{ base: "4", sm: "5", md: "6" }}
+      overflowX="hidden"
       style={{
         background: "linear-gradient(135deg, #f7f7f7 0%, #efefef 50%, #fafafa 100%)",
         position: "relative"
       }}
     >
-      {/* Decorative background elements */}
+      {/* Decorative background elements - smaller on mobile */}
       <Box
         position="absolute"
-        top="10%"
-        left="10%"
-        w="300px"
-        h="300px"
+        top="5%"
+        left="5%"
+        w={{ base: "180px", sm: "240px", md: "300px" }}
+        h={{ base: "180px", sm: "240px", md: "300px" }}
         borderRadius="full"
         style={{
           background: "linear-gradient(135deg, rgba(31, 106, 225, 0.1) 0%, rgba(107, 78, 255, 0.1) 100%)",
@@ -102,10 +103,10 @@ export default function RegisterPage() {
       />
       <Box
         position="absolute"
-        bottom="10%"
-        right="10%"
-        w="250px"
-        h="250px"
+        bottom="5%"
+        right="5%"
+        w={{ base: "140px", sm: "200px", md: "250px" }}
+        h={{ base: "140px", sm: "200px", md: "250px" }}
         borderRadius="full"
         style={{
           background: "linear-gradient(135deg, rgba(107, 78, 255, 0.1) 0%, rgba(31, 106, 225, 0.1) 100%)",
@@ -122,27 +123,27 @@ export default function RegisterPage() {
       >
         <Box
           bg="white"
-          p={{ base: "6", md: "7" }}
-          borderRadius="2xl"
+          p={{ base: "4", sm: "5", md: "6", lg: "7" }}
+          borderRadius={{ base: "xl", md: "2xl" }}
           boxShadow="0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)"
           style={{
             backdropFilter: "blur(10px)",
           }}
         >
-          <VStack gap="5" align="stretch">
+          <VStack gap={{ base: "4", md: "5" }} align="stretch">
             {/* Logo and Header */}
             <Box textAlign="center">
               <Box 
                 display="flex" 
                 justifyContent="center" 
                 alignItems="center" 
-                mb="3"
+                mb={{ base: "2", md: "3" }}
               >
               <Box 
                   as="img" 
-                  src="/assets/MTM_Logos.svg" 
+                  src="/assets/MTM_Logos.png" 
                   alt="Logo" 
-                  w="140px" 
+                  w={{ base: "90px", sm: "110px", md: "140px" }}
                   h="auto"
                   maxH="160px"
                   objectFit="contain"
@@ -150,7 +151,7 @@ export default function RegisterPage() {
                 />
               </Box>
               <Heading 
-                size="xl" 
+                size={{ base: "lg", sm: "xl" }}
                 mb="1"
                 fontWeight="700"
                 style={{ 
