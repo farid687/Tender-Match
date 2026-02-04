@@ -141,7 +141,7 @@ export default function RegisterPage() {
               >
               <Box 
                   as="img" 
-                  src="/assets/MTM_Logos.png" 
+                  src="/assets/MTM_Logo.png" 
                   alt="Logo" 
                   w={{ base: "90px", sm: "110px", md: "140px" }}
                   h="auto"

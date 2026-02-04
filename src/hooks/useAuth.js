@@ -67,6 +67,16 @@ export const useAuth = () => {
     return data;
   };
 
+
+  /**
+   * Get current user (server-validated; use this over getSession when you need fresh auth state)
+   */
+  const getUser = async () => {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    return user;
+  };
+
   /**
    * Resend verification email
    */
@@ -99,6 +109,7 @@ export const useAuth = () => {
   return {
     signIn,
     signUp,
+    getUser,
     signOut,
     resetPassword,
     updatePassword,

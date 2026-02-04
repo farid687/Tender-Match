@@ -1,15 +1,17 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { isPublicRoute } from "@/routes/publicRoutes";
+import { AuthRouteGuard } from "@/context/AuthRouteGuard";
 
 const GlobalContext = createContext({});
 
+const SIGN_IN_PATH = "/auth/sign-in";
+
 /**
- * Global state provider for user and company data
- * Handles authentication state and routing protection
+ * Global state provider for user and company data.
+ * Handles auth state only; route protection is delegated to AuthRouteGuard.
  */
 export function GlobalProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -17,64 +19,68 @@ export function GlobalProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [sidenavCollapsed, setSidenavCollapsed] = useState(false);
   const router = useRouter();
-  const pathname = usePathname();
   const auth = useAuth();
 
-  // Initialize session and subscribe to auth state changes
   useEffect(() => {
+    let cancelled = false;
+
     const initializeAuth = async () => {
       try {
-        const session = await auth.getSession();
-        const userMetadata = session?.user?.user_metadata ?? null;
-        setUser(userMetadata);
-      } catch (error) {
-        console.error('Error getting session:', error);
-        setUser(null);
+        const userFromAuth = await auth.getUser();
+        if (!cancelled) {
+          setUser(userFromAuth?.user_metadata ?? null);
+        }
+      } catch {
+        if (!cancelled) setUser(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     initializeAuth();
 
     const subscription = auth.onAuthStateChange(async (_event, session) => {
-      const userMetadata = session?.user?.user_metadata ?? null;
-      setUser(userMetadata);
+      if (session?.user) {
+        try {
+          const userFromAuth = await auth.getUser();
+          if (!cancelled) {
+            setUser(userFromAuth?.user_metadata ?? null);
+          }
+        } catch {
+          if (!cancelled) setUser(null);
+        }
+      } else {
+        if (!cancelled) setUser(null);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription?.unsubscribe?.();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Handle route protection - redirect to sign-in if not authenticated and not on public route
-  useEffect(() => {
-    if (!loading) {
-      const publicRoute = isPublicRoute(pathname);
-      if (!user && !publicRoute) {
-        router.push("/auth/sign-in");
-      }
-    }
-  }, [user, loading, pathname, router]);
-
-  // Wrapper for signOut that includes navigation
   const signOut = async () => {
     await auth.signOut();
-    router.push("/auth/sign-in");
+    router.replace(SIGN_IN_PATH);
+  };
+
+  const value = {
+    user,
+    company,
+    loading,
+    signOut,
+    setCompany,
+    sidenavCollapsed,
+    setSidenavCollapsed,
   };
 
   return (
-    <GlobalContext.Provider
-      value={{
-        user,
-        company,
-        loading,
-        signOut,
-        setCompany,
-        sidenavCollapsed,
-        setSidenavCollapsed,
-      }}
-    >
-      {children}
+    <GlobalContext.Provider value={value}>
+      <AuthRouteGuard user={user} loading={loading}>
+        {children}
+      </AuthRouteGuard>
     </GlobalContext.Provider>
   );
 }

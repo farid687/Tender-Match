@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/app/auth/context/auth-context'
+import { useGlobal } from '@/context'
 import { useCompany } from '@/hooks/useCompany'
 import { toaster } from '@/elements/toaster'
 import { Button } from '@/elements/button'
@@ -20,7 +20,7 @@ import { Box, Text, Heading, VStack, HStack } from '@chakra-ui/react'
 import { LuBuilding2, LuGlobe, LuArrowRight, LuArrowLeft, LuCheck, LuUserRound, LuBriefcase, LuPlus, LuTrash2, LuForward } from 'react-icons/lu'
 import { BsExclamationCircle } from 'react-icons/bs'
 import { Tooltip } from '@/elements/tooltip'
-import { clientTypes, contractTypes, contractRangeLabels, MAX_PORTFOLIOS, primaryGoalOptions, targetTendersOptions, parseContractRange, formatContractRange, formatValueBand, getContractRangeIndex, getContractRangeValue, CONTRACT_VALUE_MIN, CONTRACT_VALUE_MAX, parseCustomContractRange } from './variables'
+import { clientTypes, contractTypes, MAX_PORTFOLIOS, primaryGoalOptions, targetTendersOptions, parseContractRange, formatValueBand, CONTRACT_VALUE_MIN, CONTRACT_VALUE_MAX, parseCustomContractRange } from './variables'
 import { Loading, LoadingOverlay } from '@/elements/loading'
 import ProvinceSelectorDialog from './components/ProvinceSelectorDialog'
 
@@ -46,7 +46,7 @@ const steps = [
 ]
 
 export default function OnboardingPage() {
-  const { user, company, loading: authLoading } = useAuth()
+  const { user, company, loading: authLoading } = useGlobal()
   const { getCompany } = useCompany()
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
@@ -70,7 +70,6 @@ export default function OnboardingPage() {
     cpvs: [],
     contract_type: [],
     contract_range: 50000,
-    custom_contract_range: '', // optional custom value in EUR (0–50,000,000)
 
     // Step 2: Company Details
     primary_goal: [],
@@ -91,6 +90,8 @@ export default function OnboardingPage() {
       cpvs: [],
     }
   ])
+
+ 
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [preferredRegions, setPreferredRegions] = useState([]);
@@ -218,7 +219,6 @@ export default function OnboardingPage() {
       const { data, error } = await supabase
         .from('portfolio')
         .select('*')
-        .eq('company_id', companyId)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -280,8 +280,7 @@ export default function OnboardingPage() {
         company_website: company.company_website || '',
         cpvs: Array.isArray(company.cpvs) ? company.cpvs : [],
         contract_type: Array.isArray(company.contract_type) ? company.contract_type : (company.contract_type ? [company.contract_type] : []),
-        contract_range: company.contract_range ? parseContractRange(company.contract_range) : 50000,
-        custom_contract_range: company.custom_contract_range != null && company.custom_contract_range !== '' ? String(company.custom_contract_range) : '',
+        contract_range: company.contract_range != null ? parseContractRange(company.contract_range) : 50000,
         primary_goal: Array.isArray(company.primary_goal) ? company.primary_goal : (company.primary_goal ? [company.primary_goal] : []),
         target_tenders: company.target_tenders || '',
         mandatory_exclusion: company.mandatory_exclusion || false,
@@ -403,15 +402,6 @@ export default function OnboardingPage() {
     setDialogOpen(true)
   }
 
-  const handleProvinceConfirm = (provinceNames) => {
-    const regionIds = regions
-      .filter((r) => provinceNames.includes(r.province))
-      .map((r) => r.id)
-    setFormData((prev) => ({ ...prev, region_interest: regionIds }))
-  }
-
-
-
   const addPortfolio = () => {
     if (portfolios.length >= MAX_PORTFOLIOS) {
       return
@@ -508,21 +498,9 @@ export default function OnboardingPage() {
       newErrors.contract_type = 'Contract type is required'
     }
     
-    if (!formData.contract_range || (typeof formData.contract_range !== 'number' && (!formData.contract_range || formData.contract_range.toString().trim() === ''))) {
-      newErrors.contract_range = 'Contract range is required'
-    }
-
-    // Optional custom contract value: numeric only, min €0, max €50,000,000
-    const customVal = formData.custom_contract_range?.toString().trim()
-    if (customVal !== '' && customVal != null) {
-      const num = Number(customVal)
-      if (Number.isNaN(num)) {
-        newErrors.custom_contract_range = 'Enter a valid number'
-      } else if (num < CONTRACT_VALUE_MIN) {
-        newErrors.custom_contract_range = `Minimum value is €${CONTRACT_VALUE_MIN.toLocaleString()}`
-      } else if (num > CONTRACT_VALUE_MAX) {
-        newErrors.custom_contract_range = `Maximum value is €${CONTRACT_VALUE_MAX.toLocaleString()}`
-      }
+    const contractRangeNum = typeof formData.contract_range === 'number' ? formData.contract_range : parseCustomContractRange(formData.contract_range)
+    if (contractRangeNum == null || contractRangeNum < CONTRACT_VALUE_MIN || contractRangeNum > CONTRACT_VALUE_MAX) {
+      newErrors.contract_range = 'Enter a contract value (use the slider or enter a value between €0 and €50m)'
     }
 
     setErrors(newErrors)
@@ -722,8 +700,7 @@ export default function OnboardingPage() {
         kvk_number: formData.kvk_number || null,
         worker_size: formData.workerSize || null,
         contract_type: Array.isArray(formData.contract_type) && formData.contract_type.length > 0 ? formData.contract_type : null,
-        contract_range: formData.contract_range || null,
-        custom_contract_range: parseCustomContractRange(formData.custom_contract_range),
+        contract_range: formData.contract_range != null ? (typeof formData.contract_range === 'number' ? formData.contract_range : parseCustomContractRange(formData.contract_range)) : null,
         primary_goal: Array.isArray(formData.primary_goal) && formData.primary_goal.length > 0 ? formData.primary_goal : null,
         target_tenders: formData.target_tenders || null,
         company_website: formData.company_website || null,
@@ -790,7 +767,8 @@ export default function OnboardingPage() {
     if (formData.workerSize && formData.workerSize.trim() !== '') completedFields++
     if (formData.cpvs && formData.cpvs.length > 0) completedFields++
     if (formData.contract_type && formData.contract_type.length > 0) completedFields++
-    if (formData.contract_range && (typeof formData.contract_range === 'number' ? formData.contract_range > 0 : (formData.contract_range.toString().trim() !== ''))) completedFields++
+    const cr = typeof formData.contract_range === 'number' ? formData.contract_range : parseCustomContractRange(formData.contract_range)
+    if (cr != null && cr >= CONTRACT_VALUE_MIN && cr <= CONTRACT_VALUE_MAX) completedFields++
 
     // Step 2 mandatory fields
     totalFields += 1
@@ -1173,7 +1151,15 @@ export default function OnboardingPage() {
                       </Box>
                       
                       <Box mt="4">
-
+                      <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={openProvinceDialog}
+                            size="md"
+                            className="  float-right !text-primary"
+                          >
+                            Help Using the map
+                          </Button>
                         <MultiSelectField
                           label="Preferred regions"
                           items={regions}
@@ -1182,30 +1168,7 @@ export default function OnboardingPage() {
                           onValueChange={handleMultiSelectChange('region_interest')}
                           groupBy={(region) => region.province || 'Other'}
                         />
-                          <Button
-                            type="button"
-                            onClick={openProvinceDialog}
-                            size="md"
-                            className="!mt-2"
-                            style={{
-                              background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
-                              color: "white",
-                              fontWeight: "600",
-                              padding: "12px 24px",
-                              borderRadius: "12px",
-                              transition: "all 0.3s ease",
-                              boxShadow: "0 4px 14px rgba(31, 106, 225, 0.3)"
-                            }}
-                            _hover={{
-                              transform: "translateY(-2px)",
-                              boxShadow: "0 6px 20px rgba(31, 106, 225, 0.4)"
-                            }}
-                            _active={{
-                              transform: "translateY(0)"
-                            }}
-                          >
-                            Help Using the map
-                          </Button>
+                          
                         <Text fontSize="xs" color="#666" mt="1">
                           Where would you like to receive tenders?
                         </Text>
@@ -1234,7 +1197,7 @@ export default function OnboardingPage() {
                             { id: 'small', label: 'Small', range: '1 to 10' },
                             { id: 'medium', label: 'Medium', range: '10 to 50' },
                             { id: 'large', label: 'Large', range: '50 to 100' },
-                            { id: 'organization', label: 'Enterprise (100+)', range: '100+' },
+                            { id: 'enterprise', label: 'Enterprise', range: '100+' },
                           ].map((size) => {
                             const isSelected = formData.workerSize === size.id
                             return (
@@ -1359,49 +1322,34 @@ export default function OnboardingPage() {
                             />
                           </Box>
                         </Box>
-                        <Box>
+                        <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr auto 1fr" }} gap="4" alignItems="start">
                           <SliderField
                             label="Typical contract value"
-                            value={getContractRangeIndex(formData.contract_range)}
-                            onChange={(index) => updateFormData('contract_range', getContractRangeValue(index))}
-                            min={0}
-                            max={3}
-                            step={1}
-                            required
-                            maxW="100%"
-                            formatValue={(index) => contractRangeLabels[index]}
-                          />
-                          <Text fontSize="xs" color="#666" mb="2">
-                            This is used to match publicly published tenders
-                          </Text>
-                          {errors.contract_range && (
-                            <Text fontSize="xs" color="red.500" mt="1">{errors.contract_range}</Text>
-                          )}
-                          <InputField
-                            label="Custom contract value (optional)"
-                            type="number"
-                            inputMode="numeric"
+                            value={formData.contract_range != null ? Math.min(CONTRACT_VALUE_MAX, Math.max(CONTRACT_VALUE_MIN, Number(formData.contract_range))) : 50000}
+                            onChange={(value) => updateFormData('contract_range', value)}
                             min={CONTRACT_VALUE_MIN}
                             max={CONTRACT_VALUE_MAX}
-                            step={1}
-                            placeholder="e.g. 750000"
-                            value={formData.custom_contract_range}
-                            onChange={(e) => {
-                              const raw = e.target.value
-                              if (raw === '') {
-                                updateFormData('custom_contract_range', '')
-                                return
-                              }
-                              const digitsOnly = raw.replace(/\D/g, '')
-                              updateFormData('custom_contract_range', digitsOnly === '' ? '' : digitsOnly)
-                            }}
-                            invalid={!!errors.custom_contract_range}
-                            errorText={errors.custom_contract_range}
+                            step={50000}
+                            required
+                            maxW="100%"
+                            formatValue={formatValueBand}
                           />
-                          <Text fontSize="xs" color="#666" mt="1">
-                            Enter a specific value in EUR (€0 – €50,000,000)
-                          </Text>
+                          <Text as="span" alignSelf="center" fontSize="sm" fontWeight="medium" color="gray.600">OR</Text>
+                          <InputField
+                            label="Or enter value manually (€)"
+                            placeholder="e.g. 250000 or 1.5m"
+                            value={formData.contract_range != null ? String(formData.contract_range) : ''}
+                            onChange={(e) => {
+                              const v = parseCustomContractRange(e.target.value)
+                              updateFormData('contract_range', v ?? null)
+                            }}
+                            invalid={!!errors.contract_range}
+                            errorText={errors.contract_range}
+                          />
                         </Box>
+                        <Text fontSize="xs" color="#666" >
+                          This is used to match publicly published tenders (€0 – €50m)
+                        </Text>
                       </VStack>
                     </Box>
                   </VStack>
@@ -1782,10 +1730,10 @@ export default function OnboardingPage() {
                                 <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr auto 1fr" }} gap="4" alignItems="start">
                                   <SliderField
                                     label="Project value range"
-                                    value={portfolio.value_band != null ? Math.min(5000000, Math.max(50000, Number(portfolio.value_band))) : 50000}
+                                    value={portfolio.value_band != null ? Math.min(CONTRACT_VALUE_MAX, Math.max(CONTRACT_VALUE_MIN, Number(portfolio.value_band))) : 50000}
                                     onChange={(value) => updatePortfolio(index, 'value_band', value)}
-                                    min={50000}
-                                    max={5000000}
+                                    min={CONTRACT_VALUE_MIN}
+                                    max={CONTRACT_VALUE_MAX}
                                     step={50000}
                                     maxW="100%"
                                     formatValue={formatValueBand}
@@ -1978,7 +1926,6 @@ export default function OnboardingPage() {
         onOpenChange={setDialogOpen}
         preferredRegions={preferredRegions}
         onChange={setPreferredRegions}
-        onConfirm={handleProvinceConfirm}
       />
     </Box>
   )

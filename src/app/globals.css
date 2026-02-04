@@ -3,6 +3,7 @@
 /* Custom theme colors */
 @theme {
   --color-primary: #1f6ae1;
+  --color-primary-rgb: 31, 106, 225;
   --color-secondary: #6b4eff;
   --color-black: #1c1c1c;
   --color-white: #ffffff;
@@ -16,7 +17,7 @@
   --color-success: #4CBB17;
   --color-yellow: #ffff00;
   --color-anchor: #6b4eff;
-
+  --shadow-card-hover: 0 4px 12px rgba(var(--color-primary-rgb), 0.12);
 }
 
 /* Mobile-first: safe area and viewport */

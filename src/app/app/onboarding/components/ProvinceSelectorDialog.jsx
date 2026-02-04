@@ -15,15 +15,9 @@ export default function ProvinceSelectorDialog({
   onOpenChange,
   preferredRegions,
   onChange,
-  onConfirm,
 }) {
-  const handleConfirm = () => {
-    onConfirm?.(preferredRegions);
-    onOpenChange(false);
-  };
-
   return (
-    <Dialog.Root open={open} onOpenChange={(e) => onOpenChange(e.open)}>
+    <Dialog.Root placement={"center"} open={open} onOpenChange={(e) => onOpenChange(e.open)}>
       <Dialog.Backdrop />
       <Dialog.Positioner>
         <Dialog.Content maxW="600px">
@@ -32,8 +26,6 @@ export default function ProvinceSelectorDialog({
           </Dialog.Header>
 
           <Dialog.Body>
-          
-
             <Box
               border="1px solid"
               borderColor="gray.200"
@@ -48,12 +40,9 @@ export default function ProvinceSelectorDialog({
           </Dialog.Body>
 
           <Dialog.Footer>
-            <Flex justify="flex-end" gap={3}>
+            <Flex justify="flex-end">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleConfirm}>
-                Confirm
+                Close
               </Button>
             </Flex>
           </Dialog.Footer>

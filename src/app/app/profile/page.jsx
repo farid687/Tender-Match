@@ -17,12 +17,12 @@ import { Collapsible } from '@/elements/collapsible'
 import { TabButton } from '@/elements/tab-button'
 import { YearPicker } from '@/elements/year-picker'
 import { Box, Text, Heading, VStack, HStack } from '@chakra-ui/react'
-import { LuBuilding2, LuGlobe, LuUserRound, LuBriefcase, LuPlus, LuTrash2, LuSave, LuSettings, LuLock } from 'react-icons/lu'
+import {  LuUserRound, LuBriefcase, LuPlus, LuTrash2, LuSave,  } from 'react-icons/lu'
 import { BsExclamationCircle } from 'react-icons/bs'
 import { Tooltip } from '@/elements/tooltip'
 import { passwordStrength } from 'check-password-strength'
 import { useAuth  } from '@/hooks/useAuth'
-import { clientTypes, contractTypes, contractRangeLabels, MAX_PORTFOLIOS, primaryGoalOptions, targetTendersOptions, formatCurrency, parseContractRange, formatContractRange, formatValueBand, getContractRangeIndex, getContractRangeValue, CONTRACT_VALUE_MIN, CONTRACT_VALUE_MAX, parseCustomContractRange } from '../onboarding/variables'
+import { clientTypes, contractTypes, MAX_PORTFOLIOS, primaryGoalOptions, targetTendersOptions, formatCurrency, parseContractRange, formatValueBand, CONTRACT_VALUE_MIN, CONTRACT_VALUE_MAX, parseCustomContractRange } from '../onboarding/variables'
 import { Loading, LoadingOverlay } from '@/elements/loading'
 import { useGlobal } from '@/context'
 
@@ -49,7 +49,6 @@ export default function ProfilePage() {
     cpvs: [],
     contract_type: [],
     contract_range: 50000,
-    custom_contract_range: '', // optional custom value in EUR (0–50,000,000)
 
     // Step 2: Company Details
     primary_goal: [],
@@ -117,22 +116,19 @@ export default function ProfilePage() {
 
       if (error) {
         console.error('Error fetching company certifications:', error)
-        return []
+        return
       }
 
-      if(data){
-        const companyCertifications = data.map(certi => ({
-          certification_id: certi.certification_id,
-          status: certi.status || 'certified',
-          notes: certi.notes || '',
-          isExisting: true
-        }))
-        setCompanyCertifications(companyCertifications)
-      }
-     
-    } catch (error) {
-      console.error('Exception fetching company certifications:', error)
-      return []
+      const mapped = (data ?? []).map((c) => ({
+        id: c.id,
+        certification_id: c.certification_id,
+        status: c.status ?? 'certified',
+        notes: c.notes ?? '',
+        isExisting: true
+      }))
+      setCompanyCertifications(mapped)
+    } catch (err) {
+      console.error('Exception fetching company certifications:', err)
     }
   }
 
@@ -193,7 +189,6 @@ export default function ProfilePage() {
       const { data, error } = await supabase
         .from('portfolio')
         .select('*')
-        .eq('company_id', companyId)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -275,8 +270,7 @@ export default function ProfilePage() {
         company_website: company.company_website || '',
         cpvs: Array.isArray(company.cpvs) ? company.cpvs : [],
         contract_type: Array.isArray(company.contract_type) ? company.contract_type : (company.contract_type ? [company.contract_type] : []),
-        contract_range: company.contract_range ? parseContractRange(company.contract_range) : 50000,
-        custom_contract_range: company.custom_contract_range != null && company.custom_contract_range !== '' ? String(company.custom_contract_range) : '',
+        contract_range: company.contract_range != null ? parseContractRange(company.contract_range) : 50000,
         // Certifications are loaded separately from company_certifications table
         primary_goal: Array.isArray(company.primary_goal) ? company.primary_goal : (company.primary_goal ? [company.primary_goal] : []),
         target_tenders: company.target_tenders || '',
@@ -564,21 +558,9 @@ export default function ProfilePage() {
       newErrors.contract_type = 'Contract type is required'
     }
 
-    if (!formData.contract_range || (typeof formData.contract_range !== 'number' && (!formData.contract_range || formData.contract_range.toString().trim() === ''))) {
-      newErrors.contract_range = 'Contract range is required'
-    }
-
-    // Optional custom contract value: numeric only, min €0, max €50,000,000
-    const customVal = formData.custom_contract_range?.toString().trim()
-    if (customVal !== '' && customVal != null) {
-      const num = Number(customVal)
-      if (Number.isNaN(num)) {
-        newErrors.custom_contract_range = 'Enter a valid number'
-      } else if (num < CONTRACT_VALUE_MIN) {
-        newErrors.custom_contract_range = `Minimum value is €${CONTRACT_VALUE_MIN.toLocaleString()}`
-      } else if (num > CONTRACT_VALUE_MAX) {
-        newErrors.custom_contract_range = `Maximum value is €${CONTRACT_VALUE_MAX.toLocaleString()}`
-      }
+    const contractRangeNum = typeof formData.contract_range === 'number' ? formData.contract_range : parseCustomContractRange(formData.contract_range)
+    if (contractRangeNum == null || contractRangeNum < CONTRACT_VALUE_MIN || contractRangeNum > CONTRACT_VALUE_MAX) {
+      newErrors.contract_range = 'Enter a contract value (use the slider or enter a value between €0 and €50m)'
     }
 
     // Validate company details fields
@@ -629,66 +611,124 @@ export default function ProfilePage() {
 
   // Save company certifications to company_certifications table
   // Users can add new certifications and update status/notes, but cannot delete existing ones
-  const saveCompanyCertifications = async (companyId) => {
-    if (!companyId) return
+  // const saveCompanyCertifications = async (companyId) => {
+  //   if (!companyId) return
 
-    // Get current certifications from database
-    const { data: existingCerts } = await supabase
-      .from('company_certifications')
-      .select('id, certification_id')
-      .eq('company_id', companyId)
 
-    const existingCertIds = (existingCerts || []).map(c => c.certification_id)
+  //   const existingCertIds = companyCertifications?.map(c => c?.certification_id)
     
-    // Find new certifications (not in existing) - only newly added ones
-    const newCertifications = companyCertifications.filter(
-      cert => !existingCertIds.includes(cert.certification_id)
-    )
+  //   // Find new certifications (not in existing) - only newly added ones
+  //   const newCertifications = companyCertifications?.filter(
+  //     cert => !existingCertIds.includes(cert.certification_id)
+  //   )
 
-    // Insert new certifications
-    if (newCertifications.length > 0) {
-      const insertData = newCertifications.map(cert => ({
+  //   // Insert new certifications
+  //   if (newCertifications.length > 0) {
+  //     const insertData = newCertifications.map(cert => ({
+  //       company_id: companyId,
+  //       certification_id: cert.certification_id,
+  //       status: cert.status || 'certified',
+  //       notes: cert.notes || null
+  //     }))
+
+  //     const { error: insertError } = await supabase
+  //       .from('company_certifications')
+  //       .insert(insertData)
+
+  //     if (insertError) {
+  //       throw new Error(`Failed to save certifications: ${insertError.message}`)
+  //     }
+  //   }
+
+  //   // Update existing certifications (status or notes may have changed)
+  //   // Only update certifications that exist in the database
+  //   const certsToUpdate = companyCertifications.filter(cert => 
+  //     existingCertIds.includes(cert.certification_id)
+  //   )
+
+  //   if (certsToUpdate.length > 0) {
+  //     const updatePromises = certsToUpdate.map(cert => {
+  //       const existingCert = existingCerts?.find(ec => ec.certification_id === cert.certification_id)
+  //       if (!existingCert) return null
+
+  //       return supabase
+  //         .from('company_certifications')
+  //         .update({
+  //           status: cert.status || 'certified',
+  //           notes: cert.notes || null
+  //         })
+  //         .eq('id', existingCert.id)
+  //     })
+
+  //     const updateResults = await Promise.all(updatePromises.filter(Boolean))
+  //     const updateError = updateResults.find(result => result.error)
+      
+  //     if (updateError) {
+  //       throw new Error(`Failed to update certifications: ${updateError.error.message}`)
+  //     }
+  //   }
+  // }
+
+  const saveCompanyCertifications = async (companyId) => {
+    if (!companyId || !Array.isArray(companyCertifications)) return
+  
+    const inserts = []
+    const updates = []
+  
+    for (const cert of companyCertifications) {
+      if (!cert?.certification_id) continue
+  
+      const normalized = {
         company_id: companyId,
         certification_id: cert.certification_id,
-        status: cert.status || 'certified',
+        status: cert.status ?? 'certified',
         notes: cert.notes || null
-      }))
-
-      const { error: insertError } = await supabase
-        .from('company_certifications')
-        .insert(insertData)
-
-      if (insertError) {
-        throw new Error(`Failed to save certifications: ${insertError.message}`)
+      }
+  
+      // 🔹 NEW certification
+      if (!cert.isExisting) {
+        inserts.push(normalized)
+        continue
+      }
+  
+      // 🔹 EXISTING certification
+      if (cert.id) {
+        updates.push({ id: cert.id, status: normalized.status, notes: normalized.notes })
       }
     }
 
-    // Update existing certifications (status or notes may have changed)
-    // Only update certifications that exist in the database
-    const certsToUpdate = companyCertifications.filter(cert => 
-      existingCertIds.includes(cert.certification_id)
-    )
+    // INSERT (bulk); .select() returns inserted rows so we can update state without a refetch
+    if (inserts.length > 0) {
+      const { data: insertedRows, error } = await supabase
+        .from('company_certifications')
+        .insert(inserts)
+        .select('id, certification_id, status, notes')
 
-    if (certsToUpdate.length > 0) {
-      const updatePromises = certsToUpdate.map(cert => {
-        const existingCert = existingCerts?.find(ec => ec.certification_id === cert.certification_id)
-        if (!existingCert) return null
+      if (error) throw new Error(`Insert failed: ${error.message}`)
 
-        return supabase
-          .from('company_certifications')
-          .update({
-            status: cert.status || 'certified',
-            notes: cert.notes || null
-          })
-          .eq('id', existingCert.id)
-      })
+      setCompanyCertifications((prev) =>
+        prev.map((c) => {
+          if (c.id) return c
+          const row = (insertedRows ?? []).find((r) => r.certification_id === c.certification_id)
+          return row
+            ? { id: row.id, certification_id: row.certification_id, status: row.status ?? 'certified', notes: row.notes ?? '', isExisting: true }
+            : c
+        })
+      )
+    }
 
-      const updateResults = await Promise.all(updatePromises.filter(Boolean))
-      const updateError = updateResults.find(result => result.error)
-      
-      if (updateError) {
-        throw new Error(`Failed to update certifications: ${updateError.error.message}`)
-      }
+    // UPDATE (per row by id)
+    if (updates.length > 0) {
+      const results = await Promise.all(
+        updates.map((u) =>
+          supabase
+            .from('company_certifications')
+            .update({ status: u.status, notes: u.notes })
+            .eq('id', u.id)
+        )
+      )
+      const err = results.find((r) => r.error)
+      if (err) throw new Error(`Update failed: ${err.error?.message ?? err.message}`)
     }
   }
 
@@ -740,8 +780,7 @@ export default function ProfilePage() {
         cpvs: Array.isArray(formData.cpvs) && formData.cpvs.length > 0 ? formData.cpvs : null,
         worker_size: formData.workerSize || null,
         contract_type: Array.isArray(formData.contract_type) && formData.contract_type.length > 0 ? formData.contract_type : null,
-        contract_range: formData.contract_range || null,
-        custom_contract_range: parseCustomContractRange(formData.custom_contract_range),
+        contract_range: formData.contract_range != null ? (typeof formData.contract_range === 'number' ? formData.contract_range : parseCustomContractRange(formData.contract_range)) : null,
         primary_goal: Array.isArray(formData.primary_goal) && formData.primary_goal.length > 0 ? formData.primary_goal : null,
         target_tenders: formData.target_tenders || null,
         company_website: formData.company_website || null,
@@ -1066,49 +1105,34 @@ export default function ProfilePage() {
                     />
                   </Box>
                 </Box>
-                <Box>
+                <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr auto 1fr" }} gap="4" alignItems="start">
                     <SliderField
                       label="Typical contract value"
-                      value={getContractRangeIndex(formData.contract_range)}
-                      onChange={(index) => updateFormData('contract_range', getContractRangeValue(index))}
-                      min={0}
-                      max={3}
-                      step={1}
-                      required
-                      maxW="100%"
-                      formatValue={(index) => contractRangeLabels[index]}
-                    />
-                    <Text fontSize="xs" color="#666" mt="1">
-                      This is used to match publicly published tenders
-                    </Text>
-                    {errors.contract_range && (
-                      <Text fontSize="xs" color="red.500" mt="1">{errors.contract_range}</Text>
-                    )}
-                    <InputField
-                      label="Custom contract value (optional)"
-                      type="number"
-                      inputMode="numeric"
+                      value={formData.contract_range != null ? Math.min(CONTRACT_VALUE_MAX, Math.max(CONTRACT_VALUE_MIN, Number(formData.contract_range))) : 50000}
+                      onChange={(value) => updateFormData('contract_range', value)}
                       min={CONTRACT_VALUE_MIN}
                       max={CONTRACT_VALUE_MAX}
-                      step={1}
-                      placeholder="e.g. 750000"
-                      value={formData.custom_contract_range}
-                      onChange={(e) => {
-                        const raw = e.target.value
-                        if (raw === '') {
-                          updateFormData('custom_contract_range', '')
-                          return
-                        }
-                        const digitsOnly = raw.replace(/\D/g, '')
-                        updateFormData('custom_contract_range', digitsOnly === '' ? '' : digitsOnly)
-                      }}
-                      invalid={!!errors.custom_contract_range}
-                      errorText={errors.custom_contract_range}
+                      step={50000}
+                      required
+                      maxW="100%"
+                      formatValue={formatValueBand}
                     />
-                    <Text fontSize="xs" color="#666" mt="1">
-                      Enter a specific value in EUR (€0 – €50,000,000)
-                    </Text>
+                    <Text as="span" alignSelf="center" fontSize="sm" fontWeight="medium" color="gray.600">OR</Text>
+                    <InputField
+                      label="Or enter value manually (€)"
+                      placeholder="e.g. 250000 or 1.5m"
+                      value={formData.contract_range != null ? String(formData.contract_range) : ''}
+                      onChange={(e) => {
+                        const v = parseCustomContractRange(e.target.value)
+                        updateFormData('contract_range', v ?? null)
+                      }}
+                      invalid={!!errors.contract_range}
+                      errorText={errors.contract_range}
+                    />
                   </Box>
+                  <Text fontSize="xs" color="#666" mt="1">
+                    This is used to match publicly published tenders (€0 – €50m)
+                  </Text>
               </VStack>
             </Box>
           </VStack>
@@ -1491,10 +1515,10 @@ export default function ProfilePage() {
                           <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr auto 1fr" }} gap="4" alignItems="start">
                             <SliderField
                               label="Project value range"
-                              value={portfolio.value_band != null ? Math.min(5000000, Math.max(50000, Number(portfolio.value_band))) : 50000}
+                              value={portfolio.value_band != null ? Math.min(CONTRACT_VALUE_MAX, Math.max(CONTRACT_VALUE_MIN, Number(portfolio.value_band))) : 50000}
                               onChange={(value) => updatePortfolio(index, 'value_band', value)}
-                              min={50000}
-                              max={5000000}
+                              min={CONTRACT_VALUE_MIN}
+                              max={CONTRACT_VALUE_MAX}
                               step={50000}
                               maxW="100%"
                               formatValue={formatValueBand}

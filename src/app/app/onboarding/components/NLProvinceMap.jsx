@@ -2,15 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const TOOLTIP_EDGE_PADDING = 8;
-const TOOLTIP_MAX_W = 160;
-const TOOLTIP_MAX_H = 40;
+const TOOLTIP_EDGE_PADDING = 12;
+const TOOLTIP_MAX_W = 220;
+const TOOLTIP_MAX_H = 56;
+const TOOLTIP_OFFSET = 14;
 
 function updateTooltipPosition(e, containerRef, setTooltip, province) {
   const rect = containerRef.current?.getBoundingClientRect();
   if (!rect) return;
-  let x = e.clientX - rect.left;
-  let y = e.clientY - rect.top;
+  let x = e.clientX - rect.left + TOOLTIP_OFFSET;
+  let y = e.clientY - rect.top - TOOLTIP_OFFSET;
   if (x < TOOLTIP_EDGE_PADDING) x = TOOLTIP_EDGE_PADDING;
   else if (x + TOOLTIP_MAX_W > rect.width - TOOLTIP_EDGE_PADDING) x = rect.width - TOOLTIP_MAX_W - TOOLTIP_EDGE_PADDING;
   if (y < TOOLTIP_EDGE_PADDING) y = TOOLTIP_EDGE_PADDING;
@@ -75,23 +76,32 @@ export default function NLProvinceMap() {
   }, []);
 
   return (
-    <div ref={containerRef} className="nl-map relative w-full overflow-hidden">
+    <div ref={containerRef} className="nl-map relative w-full overflow-hidden flex justify-center">
       <object
         ref={objectRef}
         data="/maps/nl-provinces.svg"
         type="image/svg+xml"
         aria-label="Netherlands provinces map"
-        className="block w-full h-auto"
+        className="block w-full h-auto max-w-[400px]"
       />
       {tooltip.name && (
         <div
-          className="pointer-events-none absolute z-[9999] px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg shadow-xl whitespace-nowrap border border-gray-700"
+          className="pointer-events-none absolute z-[9999] whitespace-nowrap transition-opacity duration-150"
           style={{
             left: tooltip.x,
             top: tooltip.y,
           }}
         >
-          {tooltip.name}
+          <div
+            className="!px-3 text-sm font-semibold text-white rounded-md"
+            style={{
+              background: "linear-gradient(180deg, #334155 0%, #1e293b 100%)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.08) inset",
+              letterSpacing: "0.02em",
+            }}
+          >
+            {tooltip.name}
+          </div>
         </div>
       )}
     </div>

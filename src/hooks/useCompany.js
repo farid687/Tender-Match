@@ -7,18 +7,12 @@ export const useCompany = () => {
   const [loadingUpdate, setLoadingUpdate] = useState(false);
   const { setCompany } = useGlobal();
 
-  const getCompany = async (companyId) => {
-    if (!companyId) {
-      setCompany(null);
-      return;
-    }
-
+  const getCompany = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('company')
         .select('*')
-        .eq('id', companyId)
         .single();
 
       if (error) {
@@ -45,7 +39,7 @@ export const useCompany = () => {
       const { data, error } = await supabase
         .from('company')
         .insert(companyData)
-        .select()
+        .select('*')
         .single();
 
       if (error) {
@@ -74,7 +68,7 @@ export const useCompany = () => {
         .from('company')
         .update(updates)
         .eq('id', companyId)
-        .select()
+        .select('*')
         .single();
 
       if (error) {
