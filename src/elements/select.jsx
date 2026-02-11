@@ -117,8 +117,8 @@ export const SelectField = React.forwardRef((props, ref) => {
                   {collection.group().map(([category, groupItems]) => (
                     <Combobox.ItemGroup key={category}>
                       <Combobox.ItemGroupLabel  fontWeight="600" className="!text-black">{category}</Combobox.ItemGroupLabel>
-                      {groupItems.map((item) => (
-                        <Combobox.Item  item={item} key={item.id || item.value}>
+                      {groupItems.map((item, idx) => (
+                        <Combobox.Item item={item} key={item.id ?? item.value ?? `group-${category}-${idx}`}>
                           {item?.name || itemToString(item)}
                           <Combobox.ItemIndicator />
                         </Combobox.Item>
@@ -129,8 +129,8 @@ export const SelectField = React.forwardRef((props, ref) => {
                 </>
               ) : (
                 <Combobox.ItemGroup>
-                  {collection.items.map((item) => (
-                    <Combobox.Item item={item} key={item.id || item.value}>
+                  {collection.items.map((item, idx) => (
+                    <Combobox.Item item={item} key={item.id ?? item.value ?? `item-${idx}`}>
                       {item.name || itemToString(item)}
                       <Combobox.ItemIndicator />
                     </Combobox.Item>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useGlobal } from '@/context'
@@ -23,6 +23,7 @@ import { Tooltip } from '@/elements/tooltip'
 import { clientTypes, contractTypes, MAX_PORTFOLIOS, primaryGoalOptions, targetTendersOptions, parseContractRange, formatValueBand, CONTRACT_VALUE_MIN, CONTRACT_VALUE_MAX, parseCustomContractRange } from './variables'
 import { Loading, LoadingOverlay } from '@/elements/loading'
 import ProvinceSelectorDialog from './components/ProvinceSelectorDialog'
+import Uploader from '@/elements/uploader'
 
 const steps = [
   {
@@ -60,6 +61,7 @@ export default function OnboardingPage() {
   const [portfolioErrors, setPortfolioErrors] = useState({})
   // Separate state for company certifications
   const [companyCertifications, setCompanyCertifications] = useState([]) // Array of { certification_id, status, notes?, isExisting? }
+  const [profileImg, setProfileImg] = useState('')
   const [formData, setFormData] = useState({
     // Step 1: Company Profile
     region: '',
@@ -67,6 +69,7 @@ export default function OnboardingPage() {
     workerSize: '',
     kvk_number: '',
     company_website: '',
+    company_logo: '',
     cpvs: [],
     contract_type: [],
     contract_range: 50000,
@@ -95,6 +98,8 @@ export default function OnboardingPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [preferredRegions, setPreferredRegions] = useState([]);
+  const preferredRegionsRef = useRef(preferredRegions);
+  preferredRegionsRef.current = preferredRegions;
 
  
 
@@ -135,7 +140,7 @@ export default function OnboardingPage() {
     try {
       const { data, error } = await supabase
         .from('company_certifications')
-        .select('id, certification_id, status, notes')
+        .select('id, certification_id, status, notes, document')
         .eq('company_id', companyId)
 
       if (error) {
@@ -143,41 +148,36 @@ export default function OnboardingPage() {
         return []
       }
 
-      if(data){
-        const companyCertifications = data.map(certi => ({
+      if (data) {
+        const mapped = data.map(certi => ({
+          id: certi.id,
           certification_id: certi.certification_id,
           status: certi.status || 'certified',
           notes: certi.notes || '',
+          document: certi.document ?? '',
           isExisting: true
         }))
-        setCompanyCertifications(companyCertifications)
+        setCompanyCertifications(mapped)
       }
-     
     } catch (error) {
       console.error('Exception fetching company certifications:', error)
       return []
     }
   }
 
-  // Fetch regions from Supabase
+  // Fetch regions from Supabase (id, name only)
   const fetchRegions = async () => {
     try {
       const { data, error } = await supabase
         .from('regions')
-        .select('id, name, province')
+        .select('id, name')
         .order('name', { ascending: true })
 
       if (error) {
         console.error('Error fetching regions:', error)
         setRegions([])
       } else {
-        // Map to ensure id, name and province structure
-        const mappedRegions = (data || []).map(region => ({
-          id: region.id,
-          name: region.name,
-          province: region.province
-        }))
-        setRegions(mappedRegions)
+        setRegions((data || []).map((r) => ({ id: r.id, name: r.name })))
       }
     } catch (error) {
       console.error('Exception fetching regions:', error)
@@ -268,6 +268,21 @@ export default function OnboardingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.company_id])
 
+  // Fetch user profile_img from users table (single read on load, using user.sub from global)
+  // useEffect(() => {
+  //   if (!user?.sub || !supabase) return
+  //   let cancelled = false
+  //   supabase
+  //     .from('users')
+  //     .select('profile_img')
+  //     .eq('id', user.sub)
+  //     .maybeSingle()
+  //     .then(({ data }) => {
+  //       if (!cancelled && data?.profile_img) setProfileImg(data.profile_img)
+  //     })
+  //   return () => { cancelled = true }
+  // }, [user?.sub, supabase])
+
   // Update form data when company data is available from context
   useEffect(() => {
     if (company) {
@@ -278,6 +293,7 @@ export default function OnboardingPage() {
         workerSize: company.worker_size || '',
         kvk_number: company.kvk_number || '',
         company_website: company.company_website || '',
+        company_logo: company.company_logo || '',
         cpvs: Array.isArray(company.cpvs) ? company.cpvs : [],
         contract_type: Array.isArray(company.contract_type) ? company.contract_type : (company.contract_type ? [company.contract_type] : []),
         contract_range: company.contract_range != null ? parseContractRange(company.contract_range) : 50000,
@@ -346,7 +362,8 @@ export default function OnboardingPage() {
           certification_id: certId,
           status: 'certified',
           notes: '',
-          isExisting: false 
+          document: '',
+          isExisting: false
         })
       })
       
@@ -376,6 +393,18 @@ export default function OnboardingPage() {
     )
   }
 
+  // Handle certification document URL (uploader onChange)
+  const handleCertificationDocumentChange = (companyCertIdOrCertificationId, url) => {
+    setCompanyCertifications(prev =>
+      prev.map(cert =>
+        (cert.id && cert.id === companyCertIdOrCertificationId) ||
+        (!cert.id && cert.certification_id === companyCertIdOrCertificationId)
+          ? { ...cert, document: url }
+          : cert
+      )
+    )
+  }
+
   const handleSelectChange = (field) => (details) => {
     const value = details?.value
     const singleValue = Array.isArray(value) ? value[0] : value
@@ -390,16 +419,28 @@ export default function OnboardingPage() {
     }
   }
 
-  // Sync map selection (province names) with form (region IDs)
+  // Sync map selection (region names) with form (region IDs)
   const openProvinceDialog = () => {
-    const provinceNames = [...new Set(
+    const regionNames = [...new Set(
       regions
         .filter((r) => formData.region_interest.includes(r.id))
-        .map((r) => r.province)
+        .map((r) => r.name)
         .filter(Boolean)
     )]
-    setPreferredRegions(provinceNames)
+    setPreferredRegions(regionNames)
     setDialogOpen(true)
+  }
+
+  const handleProvinceDialogOpenChange = (open) => {
+    setDialogOpen(open)
+    if (!open) {
+      const current = preferredRegionsRef.current || []
+      const norm = (s) => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ').replace(/-/g, ' ')
+      const ids = regions.filter((r) =>
+        current.some((n) => norm(r.name) === norm(n))
+      ).map((r) => r.id)
+      updateFormData('region_interest', ids)
+    }
   }
 
   const addPortfolio = () => {
@@ -625,36 +666,44 @@ export default function OnboardingPage() {
   }
 
   // Save company certifications to company_certifications table
-  // Only inserts new certifications during onboarding (no updates or deletes)
-  // Uses companyCertifications state which already has isExisting flag
+  // Inserts new certifications; updates document for existing ones
   const saveCompanyCertifications = async (companyId) => {
     if (!companyId || !companyCertifications || companyCertifications.length === 0) {
       return
     }
 
-    // Filter to only new certifications (not marked as existing)
-    const newCertifications = companyCertifications.filter(
-      cert => !cert.isExisting
+    const newCertifications = companyCertifications.filter(cert => !cert.isExisting)
+    const existingWithDocument = companyCertifications.filter(
+      cert => cert.isExisting && cert.id && (cert.document ?? '') !== ''
     )
 
-    if (newCertifications.length === 0) {
-      return // No new certifications to add
+    // Insert new certifications (with document)
+    if (newCertifications.length > 0) {
+      const insertData = newCertifications.map(cert => ({
+        company_id: companyId,
+        certification_id: cert.certification_id,
+        status: cert.status || 'certified',
+        notes: cert.notes || null,
+        document: cert.document || null
+      }))
+      const { error } = await supabase
+        .from('company_certifications')
+        .insert(insertData)
+      if (error) throw new Error(`Failed to save certifications: ${error.message}`)
     }
 
-    // Insert only new certifications
-    const insertData = newCertifications.map(cert => ({
-      company_id: companyId,
-      certification_id: cert.certification_id,
-      status: cert.status || 'certified',
-      notes: cert.notes || null
-    }))
-
-    const { error } = await supabase
-      .from('company_certifications')
-      .insert(insertData)
-
-    if (error) {
-      throw new Error(`Failed to save certifications: ${error.message}`)
+    // Update document for existing certifications
+    if (existingWithDocument.length > 0) {
+      const results = await Promise.all(
+        existingWithDocument.map(cert =>
+          supabase
+            .from('company_certifications')
+            .update({ document: cert.document || null })
+            .eq('id', cert.id)
+        )
+      )
+      const err = results.find(r => r.error)
+      if (err) throw new Error(`Failed to update certification documents: ${err.error?.message ?? err.message}`)
     }
   }
 
@@ -687,6 +736,11 @@ export default function OnboardingPage() {
     setIsSubmitting(true)
 
     try {
+      // Persist profile_img to users table
+      // if (user?.sub) {
+      //   await supabase.from('users').update({ profile_img: profileImg || null }).eq('id', user.sub)
+      // }
+
       // Step 1: Insert portfolio items FIRST
       await savePortfolios(user.company_id)
       // Step 2: Save company certifications
@@ -704,6 +758,7 @@ export default function OnboardingPage() {
         primary_goal: Array.isArray(formData.primary_goal) && formData.primary_goal.length > 0 ? formData.primary_goal : null,
         target_tenders: formData.target_tenders || null,
         company_website: formData.company_website || null,
+        company_logo: formData.company_logo || null,
         mandatory_exclusion: formData.mandatory_exclusion || false,
         discretionary_exclusion: formData.discretionary_exclusion || false,
         match_ready: formData.match_ready || false,
@@ -797,42 +852,12 @@ export default function OnboardingPage() {
         px={{ base: 3, sm: 0 }}
         py={{ base: 5, md: 6 }}
        
-        style={{
-          background: "linear-gradient(135deg, #f7f7f7 0%, #efefef 50%, #fafafa 100%)",
-          position: "relative"
-        }}
+        bg="white"
+        style={{ position: "relative" }}
       >
-        {/* Decorative background elements */}
-        <Box
-          position="absolute"
-          top="5%"
-          left="5%"
-          w={{ base: "160px", sm: "220px", md: "300px" }}
-          h={{ base: "160px", sm: "220px", md: "300px" }}
-          borderRadius="full"
-          style={{
-            background: "linear-gradient(135deg, rgba(76, 187, 23, 0.1) 0%, rgba(31, 106, 225, 0.1) 100%)",
-            filter: "blur(80px)",
-            zIndex: 0
-          }}
-        />
-        <Box
-          position="absolute"
-          bottom="5%"
-          right="5%"
-          w={{ base: "120px", sm: "180px", md: "250px" }}
-          h={{ base: "120px", sm: "180px", md: "250px" }}
-          borderRadius="full"
-          style={{
-            background: "linear-gradient(135deg, rgba(31, 106, 225, 0.1) 0%, rgba(107, 78, 255, 0.1) 100%)",
-            filter: "blur(80px)",
-            zIndex: 0
-          }}
-        />
-
         <Box 
           w="full" 
-          maxW="500px" 
+          maxW="8xl"
           position="relative"
           zIndex={1}
         >
@@ -840,11 +865,7 @@ export default function OnboardingPage() {
             bg="white"
             p={{ base: "6", sm: "8", md: "10" }}
             borderRadius={{ base: "xl", md: "2xl" }}
-            boxShadow="0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)"
             textAlign="center"
-            style={{
-              backdropFilter: "blur(10px)",
-            }}
           >
             <VStack gap="6">
               <Box
@@ -909,42 +930,12 @@ export default function OnboardingPage() {
       justifyContent="center" 
       p={{ base: 3, sm: 4, md: 6 }}
       overflowX="hidden"
-      style={{
-        background: "linear-gradient(135deg, #f7f7f7 0%, #efefef 50%, #fafafa 100%)",
-        position: "relative"
-      }}
+      bg="white"
+      style={{ position: "relative" }}
     >
-      {/* Decorative background elements - smaller on mobile */}
-      <Box
-        position="absolute"
-        top="5%"
-        left="5%"
-        w={{ base: "160px", sm: "220px", md: "300px" }}
-        h={{ base: "160px", sm: "220px", md: "300px" }}
-        borderRadius="full"
-        style={{
-          background: "linear-gradient(135deg, rgba(31, 106, 225, 0.1) 0%, rgba(107, 78, 255, 0.1) 100%)",
-          filter: "blur(80px)",
-          zIndex: 0
-        }}
-      />
-      <Box
-        position="absolute"
-        bottom="5%"
-        right="5%"
-        w={{ base: "120px", sm: "180px", md: "250px" }}
-        h={{ base: "120px", sm: "180px", md: "250px" }}
-        borderRadius="full"
-        style={{
-          background: "linear-gradient(135deg, rgba(107, 78, 255, 0.1) 0%, rgba(31, 106, 225, 0.1) 100%)",
-          filter: "blur(80px)",
-          zIndex: 0
-        }}
-      />
-
       <Box 
         w="full" 
-        maxW="900px" 
+        maxW="8xl"
         position="relative"
         zIndex={1}
         minW={0}
@@ -1033,16 +1024,12 @@ export default function OnboardingPage() {
           </Box>
         </Box>
 
-        {/* Form Card - Elegant */}
+        {/* Form Card */}
         <Box
           bg="white"
           borderRadius="2xl"
-          boxShadow="0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)"
           overflow="hidden"
           position="relative"
-          style={{
-            backdropFilter: "blur(10px)",
-          }}
         >
           {isSubmitting && <LoadingOverlay message="Saving your information..." />}
           <Box p={{ base: "4", sm: "5", md: "6", lg: "8" }} data-protonpass-form="">
@@ -1115,6 +1102,28 @@ export default function OnboardingPage() {
                       <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
                         Basic Information
                       </Text>
+                      {/* <Box mb="4">
+                        <Uploader
+                          label="Profile picture"
+                          entityId={user?.sub}
+                          folder="profile"
+                          baseName="avatar"
+                          value={profileImg}
+                          onChange={setProfileImg}
+                          accept="image/png,application/pdf"
+                        />
+                      </Box> */}
+                      <Box mb="4">
+                        <Uploader
+                          label="Company logo"
+                          entityId={user?.company_id}
+                          folder="company"
+                          baseName="logo"
+                          value={formData.company_logo}
+                          onChange={(url) => updateFormData('company_logo', url)}
+                          accept="image/png,application/pdf"
+                        />
+                      </Box>
                       <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
                         <Box>
                           <SelectField
@@ -1123,7 +1132,6 @@ export default function OnboardingPage() {
                             placeholder="Select your company location (province)"
                             value={formData.region ? [formData.region] : []}
                             onValueChange={handleSelectChange('region')}
-                            groupBy={(region) => region.province || 'Other'}
                             required
                             invalid={!!errors.region}
                             errorText={errors.region}
@@ -1166,9 +1174,7 @@ export default function OnboardingPage() {
                           placeholder="Where would you like to receive tenders?"
                           value={formData.region_interest}
                           onValueChange={handleMultiSelectChange('region_interest')}
-                          groupBy={(region) => region.province || 'Other'}
                         />
-                          
                         <Text fontSize="xs" color="#666" mt="1">
                           Where would you like to receive tenders?
                         </Text>
@@ -1463,6 +1469,17 @@ export default function OnboardingPage() {
                                           />
                                         </Box>
                                       )}
+                                      <Box mt="3">
+                                        <Uploader
+                                          label="Certification document"
+                                          entityId={cert.id || `new-${cert.certification_id}`}
+                                          folder="certifications"
+                                          baseName="document"
+                                          value={cert.document || ''}
+                                          onChange={(url) => handleCertificationDocumentChange(cert.id || cert.certification_id, url)}
+                                          accept="image/png,application/pdf"
+                                        />
+                                      </Box>
                                     </Box>
                                   )
                                 })}
@@ -1923,7 +1940,7 @@ export default function OnboardingPage() {
 
       <ProvinceSelectorDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={handleProvinceDialogOpenChange}
         preferredRegions={preferredRegions}
         onChange={setPreferredRegions}
       />

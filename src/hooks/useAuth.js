@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -6,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
  * Contains all authentication-related API functions
  */
 export const useAuth = () => {
+  const router = useRouter();
   const company_id = uuidv4();
 
   /**
@@ -45,6 +47,7 @@ export const useAuth = () => {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    router.replace('/auth/sign-in');
   };
 
   /**

@@ -10,12 +10,16 @@ export const Menu = React.forwardRef(function Menu(props, ref) {
     items = [],
     positioning,
     onSelect,
+    contentProps,
     ...rest
   } = props
 
   const handleItemClick = React.useCallback((item) => {
     if (item.onClick) {
-      item.onClick()
+      const result = item.onClick()
+      if (result && typeof result.catch === 'function') {
+        result.catch(() => {})
+      }
     }
     if (onSelect) {
       onSelect(item)
@@ -28,7 +32,15 @@ export const Menu = React.forwardRef(function Menu(props, ref) {
         {trigger}
       </ChakraMenu.Trigger>
       <ChakraMenu.Positioner {...(positioning && { positioning })}>
-        <ChakraMenu.Content>
+        <ChakraMenu.Content
+          borderRadius="xl"
+          boxShadow="0 10px 40px rgba(0,0,0,0.12), 0 2px 10px rgba(0,0,0,0.08)"
+          borderWidth="1px"
+          borderColor="gray.100"
+          py="1"
+          minW="220px"
+          {...contentProps}
+        >
           <ChakraMenu.ItemGroup>
             {items.map((item, index) => {
               if (item.type === 'separator') {

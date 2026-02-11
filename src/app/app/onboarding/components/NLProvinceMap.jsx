@@ -1,11 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const TOOLTIP_EDGE_PADDING = 12;
 const TOOLTIP_MAX_W = 220;
 const TOOLTIP_MAX_H = 56;
 const TOOLTIP_OFFSET = 14;
+const SELECTED_FILL = "var(--province-selected, #3b82f6)";
+const HOVER_FILL = "var(--province-hover, #94a3b8)";
+
+function getProvinceName(path) {
+  return (
+    path.getAttribute("title") ||
+    path.id?.replace("NL-", "").replace(/-/g, " ") ||
+    "Province"
+  );
+}
+
+function normalizeName(name) {
+  return String(name ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
 
 function updateTooltipPosition(e, containerRef, setTooltip, province) {
   const rect = containerRef.current?.getBoundingClientRect();
@@ -19,10 +33,25 @@ function updateTooltipPosition(e, containerRef, setTooltip, province) {
   setTooltip({ name: province, x, y });
 }
 
-export default function NLProvinceMap() {
+export default function NLProvinceMap({ preferredRegions = [], onChange }) {
   const containerRef = useRef(null);
   const objectRef = useRef(null);
   const [tooltip, setTooltip] = useState({ name: null, x: 0, y: 0 });
+  const pathListenersRef = useRef(null);
+  const preferredRegionsRef = useRef(preferredRegions);
+  const onChangeRef = useRef(onChange);
+  preferredRegionsRef.current = preferredRegions;
+  onChangeRef.current = onChange;
+
+  const applySelectionStyles = useCallback((doc, selected) => {
+    if (!doc) return;
+    const paths = doc.querySelectorAll("path[id^='NL-']");
+    paths.forEach((path) => {
+      const name = getProvinceName(path);
+      const key = normalizeName(name);
+      path.style.fill = selected.has(key) ? SELECTED_FILL : "";
+    });
+  }, []);
 
   useEffect(() => {
     const objectEl = objectRef.current;
@@ -37,33 +66,56 @@ export default function NLProvinceMap() {
         if (!svg) return;
 
         const paths = svg.querySelectorAll("path[id^='NL-']");
+        const initialSelected = new Set((preferredRegionsRef.current || []).map((n) => normalizeName(n)));
+        applySelectionStyles(doc, initialSelected);
+
+        const cleanupFns = [];
 
         paths.forEach((path) => {
-          const province =
-            path.getAttribute("title") ||
-            path.id?.replace("NL-", "").replace(/-/g, " ") ||
-            "Province";
-
-          path.setAttribute("aria-label", province);
+          const province = getProvinceName(path);
+          path.setAttribute("aria-label", `${province} (click to select)`);
           path.style.cursor = "pointer";
           path.style.transition = "fill 0.15s ease";
 
-          path.addEventListener("mouseenter", (e) => {
-            path.style.fill = "var(--province-hover, #94a3b8)";
+          const onEnter = (e) => {
+            const selected = new Set((preferredRegionsRef.current || []).map((n) => normalizeName(n)));
+            const key = normalizeName(province);
+            path.style.fill = selected.has(key) ? SELECTED_FILL : HOVER_FILL;
             updateTooltipPosition(e, containerRef, setTooltip, province);
-          });
-
-          path.addEventListener("mousemove", (e) => {
-            updateTooltipPosition(e, containerRef, setTooltip, province);
-          });
-
-          path.addEventListener("mouseleave", () => {
-            path.style.removeProperty("fill");
+          };
+          const onMove = (e) => updateTooltipPosition(e, containerRef, setTooltip, province);
+          const onLeave = () => {
+            const selected = new Set((preferredRegionsRef.current || []).map((n) => normalizeName(n)));
+            const key = normalizeName(province);
+            path.style.fill = selected.has(key) ? SELECTED_FILL : "";
             setTooltip((prev) => ({ ...prev, name: null }));
+          };
+          const onClick = () => {
+            const cb = onChangeRef.current;
+            if (typeof cb !== "function") return;
+            const current = preferredRegionsRef.current || [];
+            const key = normalizeName(province);
+            const next = current.some((n) => normalizeName(n) === key)
+              ? current.filter((n) => normalizeName(n) !== key)
+              : [...current, province];
+            cb(next);
+          };
+
+          path.addEventListener("mouseenter", onEnter);
+          path.addEventListener("mousemove", onMove);
+          path.addEventListener("mouseleave", onLeave);
+          path.addEventListener("click", onClick);
+          cleanupFns.push(() => {
+            path.removeEventListener("mouseenter", onEnter);
+            path.removeEventListener("mousemove", onMove);
+            path.removeEventListener("mouseleave", onLeave);
+            path.removeEventListener("click", onClick);
           });
         });
+
+        pathListenersRef.current = () => cleanupFns.forEach((fn) => fn());
       } catch (err) {
-        console.warn("Could not init map hover:", err);
+        console.warn("Could not init map:", err);
       }
     };
 
@@ -73,7 +125,16 @@ export default function NLProvinceMap() {
       objectEl.addEventListener("load", initMap);
       return () => objectEl.removeEventListener("load", initMap);
     }
-  }, []);
+    return () => pathListenersRef.current?.();
+  }, [applySelectionStyles]);
+
+  useEffect(() => {
+    const objectEl = objectRef.current;
+    const doc = objectEl?.contentDocument;
+    if (!doc) return;
+    const selected = new Set((preferredRegions || []).map((n) => normalizeName(n)));
+    applySelectionStyles(doc, selected);
+  }, [preferredRegions, applySelectionStyles]);
 
   return (
     <div ref={containerRef} className="nl-map relative w-full overflow-hidden flex justify-center">

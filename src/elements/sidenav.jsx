@@ -4,13 +4,19 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useGlobal } from '@/context'
 import { Box, VStack, HStack, Text } from '@chakra-ui/react'
-import { LuUserRound, LuPanelLeftClose, LuPanelLeft } from 'react-icons/lu'
+import { LuUserRound, LuPanelLeftClose, LuPanelLeft, LuFileText } from 'react-icons/lu'
 
 export const SIDENAV_WIDTH_EXPANDED = 280
 export const SIDENAV_WIDTH_COLLAPSED = 50 // ✅ reduced from 72
 export const SIDENAV_TRANSITION = 'width 0.18s ease, min-width 0.18s ease'
 
 const navItems = [
+  {
+    id: 'tenders',
+    label: 'Tenders',
+    href: '/app/tenders',
+    icon: LuFileText,
+  },
   {
     id: 'profile',
     label: 'Profile',
@@ -49,7 +55,7 @@ export function SideNav() {
       overflowY="auto"
       overflowX="hidden"
       py="6"
-      px={sidenavCollapsed ? '2' : '3'}
+      px={sidenavCollapsed ? '2' : '0'}
       transition={SIDENAV_TRANSITION}
       style={{
         background: "linear-gradient(180deg, #ffffff 0%, #fafafa 100%)"
@@ -134,7 +140,7 @@ export function SideNav() {
                   minH="30px"                         // ✅ consistent hit-area
                   px={sidenavCollapsed ? 0 : 4}       // ✅ NO horizontal padding when collapsed
                   py={sidenavCollapsed ? "2" : "3"}
-                  borderRadius={sidenavCollapsed ? "lg" : "xl"} // ✅ tighter radius
+                 
                   position="relative"
                   display="flex"
                   alignItems="center"
@@ -160,7 +166,6 @@ export function SideNav() {
                     <Box
                       as={Icon}
                       size="14px"
-                    
                       flexShrink={0}
                       style={{
                         color: isActive ? "#1f6ae1" : "#666",
@@ -186,9 +191,9 @@ export function SideNav() {
                       left="0"
                       top="50%"
                       transform="translateY(-50%)"
-                      w="4px"
-                      h="60%"
-                      borderRadius="0 4px 4px 0"
+                      w="3px"
+                      h="full"
+                      
                       style={{
                         background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
                         boxShadow: "0 2px 8px rgba(31, 106, 225, 0.4)"

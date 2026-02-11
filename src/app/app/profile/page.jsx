@@ -16,21 +16,21 @@ import { Toggle } from '@/elements/toggle'
 import { Collapsible } from '@/elements/collapsible'
 import { TabButton } from '@/elements/tab-button'
 import { YearPicker } from '@/elements/year-picker'
-import { Box, Text, Heading, VStack, HStack } from '@chakra-ui/react'
+import { Box, Text, Heading, VStack, HStack, ProgressCircle, AbsoluteCenter } from '@chakra-ui/react'
 import {  LuUserRound, LuBriefcase, LuPlus, LuTrash2, LuSave,  } from 'react-icons/lu'
 import { BsExclamationCircle } from 'react-icons/bs'
 import { Tooltip } from '@/elements/tooltip'
 import { passwordStrength } from 'check-password-strength'
-import { useAuth  } from '@/hooks/useAuth'
 import { clientTypes, contractTypes, MAX_PORTFOLIOS, primaryGoalOptions, targetTendersOptions, formatCurrency, parseContractRange, formatValueBand, CONTRACT_VALUE_MIN, CONTRACT_VALUE_MAX, parseCustomContractRange } from '../onboarding/variables'
 import { Loading, LoadingOverlay } from '@/elements/loading'
 import { useGlobal } from '@/context'
+import Uploader from '@/elements/uploader'
 
 export default function ProfilePage() {
   const { user, company, loading: authLoading } = useGlobal()
   const { getCompany } = useCompany()
-  const auth= useAuth()
   const [activeTab, setActiveTab] = useState('company-info')
+  const [profileImg, setProfileImg] = useState('')
   const [certifications, setCertifications] = useState([])
   const [regions, setRegions] = useState([])
   const [cpvs, setCpvs] = useState([])
@@ -46,6 +46,7 @@ export default function ProfilePage() {
     workerSize: '',
     kvk_number: '',
     company_website: '',
+    company_logo: '',
     cpvs: [],
     contract_type: [],
     contract_range: 50000,
@@ -111,7 +112,7 @@ export default function ProfilePage() {
     try {
       const { data, error } = await supabase
         .from('company_certifications')
-        .select('id, certification_id, status, notes')
+        .select('id, certification_id, status, notes, document')
         .eq('company_id', companyId)
 
       if (error) {
@@ -124,6 +125,7 @@ export default function ProfilePage() {
         certification_id: c.certification_id,
         status: c.status ?? 'certified',
         notes: c.notes ?? '',
+        document: c.document ?? '',
         isExisting: true
       }))
       setCompanyCertifications(mapped)
@@ -132,24 +134,19 @@ export default function ProfilePage() {
     }
   }
 
-  // Fetch regions from Supabase
+  // Fetch regions from Supabase (id, name only)
   const fetchRegions = async () => {
     try {
       const { data, error } = await supabase
         .from('regions')
-        .select('id, name, province')
+        .select('id, name')
         .order('name', { ascending: true })
-      
+
       if (error) {
         console.error('Error fetching regions:', error)
         setRegions([])
       } else {
-        const mappedRegions = (data || []).map(region => ({
-          id: region.id,
-          name: region.name,
-          province: region.province
-        }))
-        setRegions(mappedRegions)
+        setRegions((data || []).map((r) => ({ id: r.id, name: r.name })))
       }
     } catch (error) {
       console.error('Exception fetching regions:', error)
@@ -232,6 +229,21 @@ export default function ProfilePage() {
     }
   }
 
+  // Fetch user profile_img from users table (single read on load, using user.sub from global)
+  // useEffect(() => {
+  //   if (!user?.sub || !supabase) return
+  //   let cancelled = false
+  //   supabase
+  //     .from('users')
+  //     .select('profile_img')
+  //     .eq('id', user.sub)
+  //     .maybeSingle()
+  //     .then(({ data }) => {
+  //       if (!cancelled && data?.profile_img) setProfileImg(data.profile_img)
+  //     })
+  //   return () => { cancelled = true }
+  // }, [user?.sub, supabase])
+
   useEffect(() => {
     if (!supabase) return
     const loadInitialData = async () => {
@@ -268,6 +280,7 @@ export default function ProfilePage() {
         workerSize: company.worker_size || '',
         kvk_number: company.kvk_number || '',
         company_website: company.company_website || '',
+        company_logo: company.company_logo || '',
         cpvs: Array.isArray(company.cpvs) ? company.cpvs : [],
         contract_type: Array.isArray(company.contract_type) ? company.contract_type : (company.contract_type ? [company.contract_type] : []),
         contract_range: company.contract_range != null ? parseContractRange(company.contract_range) : 50000,
@@ -384,6 +397,18 @@ export default function ProfilePage() {
       prev.map(cert =>
         cert.certification_id === certificationId
           ? { ...cert, notes }
+          : cert
+      )
+    )
+  }
+
+  // Handle certification document URL (uploader onChange) – update state by company_certification row
+  const handleCertificationDocumentChange = (companyCertIdOrCertificationId, url) => {
+    setCompanyCertifications(prev =>
+      prev.map(cert =>
+        (cert.id && cert.id === companyCertIdOrCertificationId) ||
+        (!cert.id && cert.certification_id === companyCertIdOrCertificationId)
+          ? { ...cert, document: url }
           : cert
       )
     )
@@ -682,7 +707,8 @@ export default function ProfilePage() {
         company_id: companyId,
         certification_id: cert.certification_id,
         status: cert.status ?? 'certified',
-        notes: cert.notes || null
+        notes: cert.notes || null,
+        document: cert.document || null
       }
   
       // 🔹 NEW certification
@@ -693,7 +719,7 @@ export default function ProfilePage() {
   
       // 🔹 EXISTING certification
       if (cert.id) {
-        updates.push({ id: cert.id, status: normalized.status, notes: normalized.notes })
+        updates.push({ id: cert.id, status: normalized.status, notes: normalized.notes, document: normalized.document })
       }
     }
 
@@ -702,7 +728,7 @@ export default function ProfilePage() {
       const { data: insertedRows, error } = await supabase
         .from('company_certifications')
         .insert(inserts)
-        .select('id, certification_id, status, notes')
+        .select('id, certification_id, status, notes, document')
 
       if (error) throw new Error(`Insert failed: ${error.message}`)
 
@@ -711,7 +737,7 @@ export default function ProfilePage() {
           if (c.id) return c
           const row = (insertedRows ?? []).find((r) => r.certification_id === c.certification_id)
           return row
-            ? { id: row.id, certification_id: row.certification_id, status: row.status ?? 'certified', notes: row.notes ?? '', isExisting: true }
+            ? { id: row.id, certification_id: row.certification_id, status: row.status ?? 'certified', notes: row.notes ?? '', document: row.document ?? '', isExisting: true }
             : c
         })
       )
@@ -723,7 +749,7 @@ export default function ProfilePage() {
         updates.map((u) =>
           supabase
             .from('company_certifications')
-            .update({ status: u.status, notes: u.notes })
+            .update({ status: u.status, notes: u.notes, document: u.document ?? null })
             .eq('id', u.id)
         )
       )
@@ -774,6 +800,11 @@ export default function ProfilePage() {
       await savePortfolios(user.company_id)
       await saveCompanyCertifications(user.company_id)
       
+      // Persist profile_img to users table (single write on save)
+      // if (user?.sub) {
+      //   await supabase.from('users').update({ profile_img: profileImg || null }).eq('id', user.sub)
+      // }
+
       const companyUpdateData = {
         region: formData.region || null,
         region_interest: Array.isArray(formData.region_interest) && formData.region_interest.length > 0 ? formData.region_interest : null,
@@ -787,6 +818,7 @@ export default function ProfilePage() {
         mandatory_exclusion: formData.mandatory_exclusion || false,
         discretionary_exclusion: formData.discretionary_exclusion || false,
         match_ready: formData.match_ready || false,
+        company_logo: formData.company_logo || null,
         // Note: kvk_number is NOT updated here as it is disabled
       }
 
@@ -871,7 +903,75 @@ export default function ProfilePage() {
     }
   }
 
+  // Calculate profile completion progress (same mandatory fields as onboarding)
+  const calculateProgress = () => {
+    let completedFields = 0
+    let totalFields = 0
+    totalFields += 5
+    if (formData.region && formData.region.trim() !== '') completedFields++
+    if (formData.workerSize && formData.workerSize.trim() !== '') completedFields++
+    if (formData.cpvs && formData.cpvs.length > 0) completedFields++
+    if (formData.contract_type && formData.contract_type.length > 0) completedFields++
+    const cr = typeof formData.contract_range === 'number' ? formData.contract_range : parseCustomContractRange(formData.contract_range)
+    if (cr != null && cr >= CONTRACT_VALUE_MIN && cr <= CONTRACT_VALUE_MAX) completedFields++
+    totalFields += 1
+    if (formData.primary_goal && formData.primary_goal.length > 0) completedFields++
+    return totalFields > 0 ? Math.round((completedFields / totalFields) * 100) : 0
+  }
+  const progressPercentage = calculateProgress()
+
   const tabs = [
+    // {
+    //   id: 'account',
+    //   value: 'account',
+    //   label: 'Account',
+    //   content: (
+    //     <Box p={{ base: '3', md: '4' }}>
+    //       <VStack gap="5" align="stretch">
+    //         {/* Profile picture update commented out for now
+    //         <Box mb="2">
+    //           <Heading
+    //             size={{ base: 'lg', sm: 'xl' }}
+    //             fontWeight="700"
+    //             style={{
+    //               background: 'linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)',
+    //               WebkitBackgroundClip: 'text',
+    //               WebkitTextFillColor: 'transparent',
+    //               backgroundClip: 'text'
+    //             }}
+    //           >
+    //             Profile picture
+    //           </Heading>
+    //           <Text fontSize="sm" color="#666" mt="1">
+    //             Upload a photo for your account. Stored in users.profile_img.
+    //           </Text>
+    //         </Box>
+    //         <Box
+    //           borderRadius="xl"
+    //           p="5"
+    //           bg="#fafafa"
+    //           borderWidth="1px"
+    //           borderStyle="solid"
+    //           borderColor="#efefef"
+    //         >
+    //           <Uploader
+    //             label="Profile picture"
+    //             entityId={user?.sub}
+    //             folder="profile"
+    //             baseName="avatar"
+    //             value={profileImg}
+    //             onChange={setProfileImg}
+    //             accept="image/png,application/pdf"
+    //           />
+    //         </Box>
+    //         */}
+    //         <Text fontSize="sm" color="#666">
+    //           Account settings. Profile picture update is temporarily disabled.
+    //         </Text>
+    //       </VStack>
+    //     </Box>
+    //   )
+    // },
     {
       id: 'company-info',
       value: 'company-info',
@@ -912,6 +1012,17 @@ export default function ProfilePage() {
               <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
                 Basic Information
               </Text>
+              <Box mb="4">
+                <Uploader
+                  label="Company logo"
+                  entityId={user?.company_id}
+                  folder="company"
+                  baseName="logo"
+                  value={formData.company_logo}
+                  onChange={(url) => updateFormData('company_logo', url)}
+                accept="image/png,application/pdf"
+                />
+              </Box>
               <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
                 <Box>
                   <SelectField
@@ -920,7 +1031,6 @@ export default function ProfilePage() {
                     placeholder="Select your company location (province)"
                     value={formData.region ? [formData.region] : []}
                     onValueChange={handleSelectChange('region')}
-                    groupBy={(region) => region.province || 'Other'}
                     required
                     invalid={!!errors.region}
                     errorText={errors.region}
@@ -950,7 +1060,6 @@ export default function ProfilePage() {
                   placeholder="Where would you like to receive tenders?"
                   value={formData.region_interest}
                   onValueChange={handleMultiSelectChange('region_interest')}
-                  groupBy={(region) => region.province || 'Other'}
                 />
                 <Text fontSize="xs" color="#666" mt="1">
                   Where would you like to receive tenders?
@@ -1246,6 +1355,17 @@ export default function ProfilePage() {
                                   />
                                 </Box>
                               )}
+                              <Box mt="3">
+                                <Uploader
+                                  label="Certification document"
+                                  entityId={cert.id || `new-${cert.certification_id}`}
+                                  folder="certifications"
+                                  baseName="document"
+                                  value={cert.document || ''}
+                                  onChange={(url) => handleCertificationDocumentChange(cert.id || cert.certification_id, url)}
+                                  accept="image/png,application/pdf"
+                                />
+                              </Box>
                             </Box>
                           )
                         })}
@@ -1712,100 +1832,78 @@ export default function ProfilePage() {
   return (
     <Box
       minH={{ base: "90dvh", lg: "90vh" }}
-      maxH="auto"
+      w="full"
       position="relative"
       display="flex"
       justifyContent="center"
-      p={{ base: "3", md: "4" }}
+      alignItems="flex-start"
       overflowX="hidden"
-      style={{
-        background: "linear-gradient(135deg, #f7f7f7 0%, #efefef 50%, #fafafa 100%)",
-      }}
+      bg="white"
+      px={{ base: "4", sm: "5", md: "6" }}
+      py={{ base: "5", md: "6" }}
     >
-      {/* Decorative background elements - smaller on mobile */}
-      <Box
-        position="absolute"
-        top="5%"
-        left="5%"
-        w={{ base: "160px", sm: "220px", md: "300px" }}
-        h={{ base: "160px", sm: "220px", md: "300px" }}
-        borderRadius="full"
-        style={{
-          background: "linear-gradient(135deg, rgba(31, 106, 225, 0.1) 0%, rgba(107, 78, 255, 0.1) 100%)",
-          filter: "blur(80px)",
-          zIndex: 0
-        }}
-      />
-      <Box
-        position="absolute"
-        bottom="5%"
-        right="5%"
-        w={{ base: "120px", sm: "180px", md: "250px" }}
-        h={{ base: "120px", sm: "180px", md: "250px" }}
-        borderRadius="full"
-        style={{
-          background: "linear-gradient(135deg, rgba(107, 78, 255, 0.1) 0%, rgba(31, 106, 225, 0.1) 100%)",
-          filter: "blur(80px)",
-          zIndex: 0
-        }}
-      />
-
-      <Box w="full" maxW="900px" mx="auto" position="relative" zIndex={1} minW={0}>
-        {/* Header Section */}
-        <Box mb={{ base: 4, md: 6 }} textAlign="left">
-          <HStack gap={{ base: 2, md: 3 }} mb={{ base: 2, md: 3 }} align="center">
-            {/* <Box
-              w="48px"
-              h="48px"
-              borderRadius="xl"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              boxShadow="0 4px 12px rgba(31, 106, 225, 0.3)"
-              style={{
-                background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)"
-              }}
-            >
-              <LuSettings style={{ width: "24px", height: "24px", color: "white" }} />
-            </Box> */}
-            {/* <Heading
-              size="2xl"
-              fontWeight="700"
-              style={{
-                background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text"
-              }}
-            >
-              Profile Settings
-            </Heading> */}
-          </HStack>
-          <Text fontSize={{ base: "sm", md: "lg" }} fontWeight="500" color="#666">
-            Manage your company information and showcase your portfolio
-          </Text>
+      <Box w="full" position="relative" zIndex={1} minW={0}>
+        {/* Progress + header block */}
+        <Box
+          mb={{ base: "6", md: "8" }}
+          p={{ base: "5", md: "6" }}
+          borderRadius="2xl"
+          bg="#fafafa"
+          borderWidth="1px"
+          borderStyle="solid"
+          borderColor="#efefef"
+          boxShadow="0 1px 3px rgba(0,0,0,0.04)"
+        >
+          <VStack gap={{ base: "5", md: "6" }} align="stretch">
+            <Box display="flex" flexDirection={{ base: "column", sm: "row" }} alignItems="center" justifyContent="space-between" gap="4">
+              <Box flex="1" textAlign={{ base: "center", sm: "left" }}>
+                <Heading
+                  size={{ base: "lg", md: "xl" }}
+                  fontWeight="700"
+                  letterSpacing="-0.02em"
+                  style={{
+                    background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text"
+                  }}
+                >
+                  Profile
+                </Heading>
+                <Text fontSize={{ base: "sm", md: "md" }} color="#666" mt="1" fontWeight="500">
+                  Manage your company information and showcase your portfolio
+                </Text>
+              </Box>
+              <Box  flexShrink={0}>
+                <ProgressCircle.Root size="xl"  value={progressPercentage}>
+                  <ProgressCircle.Circle>
+                    <ProgressCircle.Track />
+                    <ProgressCircle.Range stroke="green" />
+                  </ProgressCircle.Circle>
+                  <AbsoluteCenter>
+                    <ProgressCircle.ValueText />
+                  </AbsoluteCenter>
+                </ProgressCircle.Root>
+               
+              </Box>
+            </Box>
+          </VStack>
         </Box>
 
-        {/* Profile Card with Tabs - overflow visible so multi-select chips aren't clipped */}
+        {/* Main card: tabs + content + save */}
         <Box
           bg="white"
           borderRadius="2xl"
-          boxShadow="0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)"
           overflow="visible"
           position="relative"
-          style={{
-            backdropFilter: "blur(10px)",
-          }}
+         
         >
           {isSubmitting && <LoadingOverlay message="Saving changes..." />}
-          
-          {/* Tab Header - scrollable on mobile */}
+
           <Box
-            borderBottomWidth="1px"
-            borderBottomStyle="solid"
-            borderBottomColor="#efefef"
-            px={{ base: "3", sm: "4", md: "6", lg: "8" }}
-            pt={{ base: "3", md: "4" }}
+           
+           
+            pt={{ base: "4", md: "5" }}
             pb="0"
             bg="white"
           >
@@ -1819,13 +1917,10 @@ export default function ProfilePage() {
             />
           </Box>
 
-          {/* Save Button Section */}
           <Box
-            borderTopWidth="1px"
-            borderTopStyle="solid"
-            borderTopColor="#efefef"
-            px={{ base: "3", sm: "4", md: "6", lg: "8" }}
-            py={{ base: "3", md: "4" }}
+           
+            px={{ base: "4", sm: "5", md: "6", lg: "8" }}
+            py={{ base: "4", md: "5" }}
             display="flex"
             alignItems="center"
             justifyContent="space-between"
@@ -1835,8 +1930,8 @@ export default function ProfilePage() {
           >
             <Box display="flex" alignItems="center" gap="2" flexShrink={0}>
               <Box
-                w="6px"
-                h="6px"
+                w="2"
+                h="2"
                 borderRadius="full"
                 bg="#1f6ae1"
                 style={{

@@ -1,24 +1,21 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthRouteGuard } from "@/context/AuthRouteGuard";
 
 const GlobalContext = createContext({});
 
-const SIGN_IN_PATH = "/auth/sign-in";
-
 /**
  * Global state provider for user and company data.
  * Handles auth state only; route protection is delegated to AuthRouteGuard.
+ * Use useAuth().signOut() for signing out (AuthRouteGuard redirects when user becomes null).
  */
 export function GlobalProvider({ children }) {
   const [user, setUser] = useState(null);
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidenavCollapsed, setSidenavCollapsed] = useState(false);
-  const router = useRouter();
   const auth = useAuth();
 
   useEffect(() => {
@@ -61,16 +58,10 @@ export function GlobalProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const signOut = async () => {
-    await auth.signOut();
-    router.replace(SIGN_IN_PATH);
-  };
-
   const value = {
     user,
     company,
     loading,
-    signOut,
     setCompany,
     sidenavCollapsed,
     setSidenavCollapsed,

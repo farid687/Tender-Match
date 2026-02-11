@@ -17,7 +17,12 @@ export default function ProvinceSelectorDialog({
   onChange,
 }) {
   return (
-    <Dialog.Root placement={"center"} open={open} onOpenChange={(e) => onOpenChange(e.open)}>
+    <Dialog.Root
+      placement="center"
+      open={open}
+      onOpenChange={(e) => onOpenChange(e.open)}
+      closeOnInteractOutside={false}
+    >
       <Dialog.Backdrop />
       <Dialog.Positioner>
         <Dialog.Content maxW="600px">
@@ -26,6 +31,9 @@ export default function ProvinceSelectorDialog({
           </Dialog.Header>
 
           <Dialog.Body>
+            <Text fontSize="sm" color="gray.600" mb="2">
+              Click provinces on the map to select or deselect. Selected regions are highlighted in blue.
+            </Text>
             <Box
               border="1px solid"
               borderColor="gray.200"
@@ -42,7 +50,7 @@ export default function ProvinceSelectorDialog({
           <Dialog.Footer>
             <Flex justify="flex-end">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Close
+                Apply &amp; Close
               </Button>
             </Flex>
           </Dialog.Footer>
