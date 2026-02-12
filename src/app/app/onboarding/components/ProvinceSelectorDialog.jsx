@@ -25,7 +25,7 @@ export default function ProvinceSelectorDialog({
       closeOnInteractOutside={false}
     >
      
-      <Dialog.Backdrop />
+      <Dialog.Backdrop bg="blackAlpha.200" />
       <Dialog.Positioner>
         <Dialog.Content maxW="600px">
           <Dialog.Header>

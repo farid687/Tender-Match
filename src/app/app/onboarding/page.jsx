@@ -94,7 +94,6 @@ export default function OnboardingPage() {
     }
   ])
 
- 
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [preferredRegions, setPreferredRegions] = useState([]);
@@ -268,20 +267,10 @@ export default function OnboardingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.company_id])
 
-  // Fetch user profile_img from users table (single read on load, using user.sub from global)
-  // useEffect(() => {
-  //   if (!user?.sub || !supabase) return
-  //   let cancelled = false
-  //   supabase
-  //     .from('users')
-  //     .select('profile_img')
-  //     .eq('id', user.sub)
-  //     .maybeSingle()
-  //     .then(({ data }) => {
-  //       if (!cancelled && data?.profile_img) setProfileImg(data.profile_img)
-  //     })
-  //   return () => { cancelled = true }
-  // }, [user?.sub, supabase])
+  // Sync profile_img from user_metadata (set by Uploader on change)
+  useEffect(() => {
+    if (user?.profile_img) setProfileImg(user.profile_img)
+  }, [user?.profile_img])
 
   // Update form data when company data is available from context
   useEffect(() => {
@@ -391,6 +380,19 @@ export default function OnboardingPage() {
           : cert
       )
     )
+  }
+
+  // Profile picture: upload to user_id/profile.png, persist to user_metadata
+  const handleProfileImgChange = async (url) => {
+    setProfileImg(url)
+    if (!supabase) return
+    try {
+      const { error } = await supabase.auth.updateUser({ data: { profile_img: url || null } })
+      if (error) throw error
+    } catch (e) {
+      console.error('Failed to update profile image:', e)
+      toaster.create({ title: 'Failed to save profile picture', type: 'error' })
+    }
   }
 
   // Handle certification document URL (uploader onChange)
@@ -1102,17 +1104,16 @@ export default function OnboardingPage() {
                       <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">
                         Basic Information
                       </Text>
-                      {/* <Box mb="4">
+                      <Box mb="4">
                         <Uploader
                           label="Profile picture"
                           entityId={user?.sub}
-                          folder="profile"
-                          baseName="avatar"
+                          baseName="profile"
                           value={profileImg}
-                          onChange={setProfileImg}
-                          accept="image/png,application/pdf"
+                          onChange={handleProfileImgChange}
+                          accept="image/png,image/jpeg,image/webp"
                         />
-                      </Box> */}
+                      </Box>
                       <Box mb="4">
                         <Uploader
                           label="Company logo"

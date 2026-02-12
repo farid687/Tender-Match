@@ -83,7 +83,28 @@ const Uploader = ({
     e.target.value = ''
   }
 
-  const handleDelete = () => {
+  const getStoragePathFromUrl = (url) => {
+    if (!url || !bucket) return null
+    try {
+      const u = new URL(url)
+      const path = u.pathname
+      const prefix = `/storage/v1/object/public/${bucket}/`
+      if (path.startsWith(prefix)) return path.slice(prefix.length)
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  const handleDelete = async () => {
+    const path = getStoragePathFromUrl(value)
+    if (path && supabase) {
+      try {
+        await supabase.storage.from(bucket).remove([path])
+      } catch (e) {
+        console.error('Storage delete failed:', e)
+      }
+    }
     onChange('')
     setUiFileName('')
   }
@@ -167,6 +188,7 @@ const Uploader = ({
                 variant="outline"
                 size="sm"
                 rounded="full"
+                disabled={loading || disabled}
               >
                 <LuX size={18} />
               </IconButton>

@@ -21,34 +21,16 @@ export function GlobalProvider({ children }) {
   useEffect(() => {
     let cancelled = false;
 
-    const initializeAuth = async () => {
-      try {
-        const userFromAuth = await auth.getUser();
-        if (!cancelled) {
-          setUser(userFromAuth?.user_metadata ?? null);
-        }
-      } catch {
-        if (!cancelled) setUser(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    initializeAuth();
-
-    const subscription = auth.onAuthStateChange(async (_event, session) => {
+    // onAuthStateChange fires INITIAL_SESSION immediately on subscribe, so we don't need a separate getUser() call.
+    // Using session from callback avoids duplicate API calls.
+    const subscription = auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
       if (session?.user) {
-        try {
-          const userFromAuth = await auth.getUser();
-          if (!cancelled) {
-            setUser(userFromAuth?.user_metadata ?? null);
-          }
-        } catch {
-          if (!cancelled) setUser(null);
-        }
+        setUser(session.user.user_metadata ?? null);
       } else {
-        if (!cancelled) setUser(null);
+        setUser(null);
       }
+      setLoading(false);
     });
 
     return () => {
