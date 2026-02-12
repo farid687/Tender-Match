@@ -17,6 +17,9 @@ const Uploader = ({
   entityId,
   folder = '',
   baseName = 'file',
+  /** For certification docs: subFolder="certification", subEntityId=cert.id → path: entityId/certification/subEntityId/document */
+  subFolder = '',
+  subEntityId = '',
   bucket = 'assets',
   accept = 'image/png,application/pdf',
   disabled = false,
@@ -55,7 +58,12 @@ const Uploader = ({
 
       const ext = file.name.split('.').pop() || 'bin'
       const fileName = `${baseName}.${ext}`
-      const storageKey = `${folder}/${entityId}/${fileName}`
+      // Logo: company_id/logo.png | Certification: company_id/certification/certificate_id/document
+      const storageKey = subFolder && subEntityId
+        ? `${entityId}/${subFolder}/${subEntityId}/${fileName}`
+        : folder
+          ? `${folder}/${entityId}/${fileName}`
+          : `${entityId}/${fileName}`
 
       const { error } = await supabase.storage.from(bucket).upload(storageKey, file, { upsert: true })
       if (error) throw error

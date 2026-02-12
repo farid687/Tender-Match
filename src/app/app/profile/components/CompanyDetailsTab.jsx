@@ -266,7 +266,7 @@ export default function CompanyDetailsTab({ company, companyId }) {
                             </Box>
                           )}
                           <Box mt="3">
-                            <Uploader label="Certification document" entityId={cert.id || `new-${cert.certification_id}`} folder="certifications" baseName="document" value={cert.document || ''} onChange={(url) => handleCertificationDocumentChange(cert.id || cert.certification_id, url)} accept="image/png,application/pdf" />
+                            <Uploader label="Certification document" entityId={companyId} subFolder="certification" subEntityId={cert.id || `new-${cert.certification_id}`} baseName="document" value={cert.document || ''} onChange={(url) => handleCertificationDocumentChange(cert.id || cert.certification_id, url)} accept="image/png,application/pdf" />
                           </Box>
                         </Box>
                       )

@@ -1117,7 +1117,6 @@ export default function OnboardingPage() {
                         <Uploader
                           label="Company logo"
                           entityId={user?.company_id}
-                          folder="company"
                           baseName="logo"
                           value={formData.company_logo}
                           onChange={(url) => updateFormData('company_logo', url)}
@@ -1472,8 +1471,9 @@ export default function OnboardingPage() {
                                       <Box mt="3">
                                         <Uploader
                                           label="Certification document"
-                                          entityId={cert.id || `new-${cert.certification_id}`}
-                                          folder="certifications"
+                                          entityId={user?.company_id}
+                                          subFolder="certification"
+                                          subEntityId={cert.id || `new-${cert.certification_id}`}
                                           baseName="document"
                                           value={cert.document || ''}
                                           onChange={(url) => handleCertificationDocumentChange(cert.id || cert.certification_id, url)}

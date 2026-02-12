@@ -160,7 +160,7 @@ export default function CompanyProfileTab({ company, regions, cpvs }) {
         <Box borderRadius="xl" p="5" bg="#fafafa" borderWidth="1px" borderStyle="solid" borderColor="#efefef">
           <Text fontSize="xs" fontWeight="600" mb="4" textTransform="uppercase" letterSpacing="wide" color="#333">Basic Information</Text>
           <Box mb="4">
-            <Uploader label="Company logo" entityId={company?.id} folder="company" baseName="logo" value={formData.company_logo} onChange={(url) => updateFormData('company_logo', url)} accept="image/png,application/pdf" />
+            <Uploader label="Company logo" entityId={company?.id} baseName="logo" value={formData.company_logo} onChange={(url) => updateFormData('company_logo', url)} accept="image/png,application/pdf" />
           </Box>
           <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4">
             <Box>
