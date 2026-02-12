@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useGlobal } from "@/context/index";
 
@@ -7,7 +7,8 @@ export const useCompany = () => {
   const [loadingUpdate, setLoadingUpdate] = useState(false);
   const { setCompany } = useGlobal();
 
-  const getCompany = async () => {
+  const getCompany = useCallback(async () => {
+    if (!supabase) return;
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -29,7 +30,7 @@ export const useCompany = () => {
       setCompany(null);
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
   /**
    * Create a new company

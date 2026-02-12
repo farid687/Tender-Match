@@ -15,14 +15,16 @@ export default function ProvinceSelectorDialog({
   onOpenChange,
   preferredRegions,
   onChange,
+  placement = "center"
 }) {
   return (
     <Dialog.Root
-      placement="center"
+      placement={placement}
       open={open}
       onOpenChange={(e) => onOpenChange(e.open)}
       closeOnInteractOutside={false}
     >
+     
       <Dialog.Backdrop />
       <Dialog.Positioner>
         <Dialog.Content maxW="600px">

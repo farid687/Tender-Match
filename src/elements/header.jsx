@@ -23,6 +23,7 @@ function getPageName(pathname) {
   // Convert to readable format
   if (lastPart === 'profile') return 'Profile'
   if (lastPart === 'tenders') return 'Tenders'
+  if (parts.includes('tenders') && parts.length > 1) return 'Tender detail'
   if (lastPart === 'onboarding') return 'Onboarding'
   if (parts.length === 0 || pathname === '/') return 'Dashboard'
   
@@ -46,6 +47,7 @@ export function Header() {
   const userName = user?.first_name && user?.last_name 
     ? `${user.first_name} ${user.last_name}` 
     : user?.first_name || user?.last_name || 'User'
+  const companyName = user?.company_name || ''
   const userEmail = user?.email || ''
   const pageName = getPageName(pathname)
 
@@ -110,7 +112,7 @@ export function Header() {
                   alignItems="center"
                   gap={3}
                   px={{ base: 1.5, md: 3 }}
-                  py={1.5}
+                  py={0.5}
                   borderRadius="full"
                   cursor="pointer"
                   outline="none"
@@ -157,10 +159,23 @@ export function Header() {
                       color="gray.800"
                       noOfLines={1}
                       textAlign="left"
+                     
                       maxW={{ base: "100px", sm: "160px", md: "200px" }}
                     >
                       {userName}
                     </Text>
+                    {companyName && (
+                      <Text
+                        fontSize="xs"
+                        fontWeight="500"
+                        color="var(--color-dark-gray)"
+                        noOfLines={1}
+                        textAlign="left"
+                        maxW={{ base: "100px", sm: "160px", md: "200px" }}
+                      >
+                        {companyName}
+                      </Text>
+                    )}
                   </VStack>
                   <Box
                     as={LuChevronDown}
@@ -178,6 +193,7 @@ export function Header() {
                   children: (
                     <Box px="3" py="1" w="full"  borderRadius="lg" >
                       <Text fontSize="sm" fontWeight="700"  className='!text-black'>{userName}</Text>
+                      
                       {userEmail && (
                         <Text fontSize="xs" className='!text-dark-gray' mt="1">{userEmail}</Text>
                       )}
