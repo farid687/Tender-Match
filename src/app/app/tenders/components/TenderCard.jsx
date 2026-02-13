@@ -73,7 +73,7 @@ function TenderCard({ t, cpvMainDisplay }) {
               </Text>
             </Box>
             <VStack align={{ base: 'flex-start', lg: 'flex-end' }} gap={0.5}>
-              <Text fontSize="xs" color="var(--color-dark-gray)" fontWeight="500">Status</Text>
+              <Text fontSize="xs" color="var(--color-dark-gray)" fontWeight="500">Time Remaining</Text>
               <Badge
                 size="sm"
                 borderRadius="full"
@@ -140,30 +140,30 @@ function TenderCard({ t, cpvMainDisplay }) {
           <HStack gap={1.5}>
             <Text color="var(--color-dark-gray)">Status:</Text>
             <Box w="2" h="2" borderRadius="full" bg={isOpen ? 'var(--color-success)' : 'var(--color-dark-gray)'} />
-            <Text fontWeight="600" color="var(--color-black)" textTransform="none">{t.tender_status || '—'}</Text>
+            <Text fontWeight="600" color="var(--color-black)" textTransform="capitalize">{t.tender_status || '—'}</Text>
           </HStack>
           {(t.publication_type_label || t.publication_type_code) && (
             <HStack gap={1.5}>
               <Text color="var(--color-dark-gray)">Publication:</Text>
-              <Text fontWeight="500" color="var(--color-black)">{t.publication_type_label || t.publication_type_code}</Text>
+              <Text fontWeight="500" color="var(--color-black)" textTransform="capitalize">{t.publication_type_label || t.publication_type_code}</Text>
             </HStack>
           )}
           {t.contract_nature && (
             <HStack gap={1.5}>
               <Text color="var(--color-dark-gray)">Type:</Text>
-              <Text fontWeight="600" color="var(--color-black)">{t.contract_nature}</Text>
+              <Text fontWeight="600" color="var(--color-black)" textTransform="capitalize">{t.contract_nature}</Text>
             </HStack>
           )}
           {t.procedure_label && (
             <HStack gap={1.5}>
               <Text color="var(--color-dark-gray)">Procedure:</Text>
-              <Text fontWeight="500" color="var(--color-black)">{t.procedure_label}</Text>
+              <Text fontWeight="500" color="var(--color-black)" textTransform="capitalize">{t.procedure_label}</Text>
             </HStack>
           )}
           {t.platform && (
             <HStack gap={1.5}>
               <Text color="var(--color-dark-gray)">Platform:</Text>
-              <Text fontWeight="500" color="var(--color-black)">{t.platform}</Text>
+              <Text fontWeight="500" color="var(--color-black)" textTransform="capitalize">{t.platform}</Text>
             </HStack>
           )}
         </HStack>
@@ -171,17 +171,17 @@ function TenderCard({ t, cpvMainDisplay }) {
           {cpvDisplay !== '—' && (
             <HStack gap={1.5} flex="1" minW={{ base: '100%', md: '200px' }} alignItems="baseline">
               <Text color="var(--color-dark-gray)" flexShrink={0}>CPV:</Text>
-              <Text fontWeight="500" color="var(--color-black)" noOfLines={1} title={cpvDisplay}>{cpvDisplay}</Text>
+              <Text fontWeight="500" color="var(--color-black)" noOfLines={1} title={cpvDisplay} textTransform="capitalize">{cpvDisplay}</Text>
             </HStack>
           )}
           <HStack gap={2} flexWrap="wrap">
             {t.is_european != null && (
-              <Badge size="sm" fontWeight="600" px={2} py={0.5} style={{ background: 'var(--color-secondary)', color: 'var(--color-white)', border: 'none' }}>
+              <Badge size="sm" fontWeight="600" px={2} py={0.5} textTransform="capitalize" style={{ background: 'var(--color-secondary)', color: 'var(--color-white)', border: 'none' }}>
                 EU tender: {t.is_european ? 'Yes' : 'No'}
               </Badge>
             )}
             {t.is_digital_submission_possible != null && (
-              <Badge size="sm" fontWeight="600" px={2} py={0.5} style={{ background: 'var(--color-primary)', color: 'var(--color-white)', border: 'none' }}>
+              <Badge size="sm" fontWeight="600" px={2} py={0.5} textTransform="capitalize" style={{ background: 'var(--color-primary)', color: 'var(--color-white)', border: 'none' }}>
                 Digital submission: {t.is_digital_submission_possible ? 'Yes' : 'No'}
               </Badge>
             )}

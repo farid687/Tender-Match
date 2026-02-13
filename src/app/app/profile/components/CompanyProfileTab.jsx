@@ -17,7 +17,7 @@ import Uploader from '@/elements/uploader'
 import ProvinceSelectorDialog from '../../onboarding/components/ProvinceSelectorDialog'
 import { contractTypes, parseContractRange, formatValueBand, CONTRACT_VALUE_MIN, CONTRACT_VALUE_MAX, parseCustomContractRange } from '../variables'
 
-export default function CompanyProfileTab({ company, regions, cpvs }) {
+export default function CompanyProfileTab({ company, regions, cpvs, onDraftChange }) {
   const { getCompany } = useCompany()
   const [formData, setFormData] = useState({
     region: '',
@@ -76,6 +76,17 @@ export default function CompanyProfileTab({ company, regions, cpvs }) {
       }))
     }
   }, [company])
+
+  useEffect(() => {
+    if (!onDraftChange) return
+    onDraftChange({
+      region: formData.region ?? '',
+      worker_size: formData.workerSize ?? '',
+      cpvs: Array.isArray(formData.cpvs) ? formData.cpvs : [],
+      contract_type: Array.isArray(formData.contract_type) ? formData.contract_type : [],
+      contract_range: formData.contract_range,
+    })
+  }, [onDraftChange, formData.region, formData.workerSize, formData.cpvs, formData.contract_type, formData.contract_range])
 
   const updateFormData = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -144,10 +155,10 @@ export default function CompanyProfileTab({ company, regions, cpvs }) {
   }
 
   return (
-    <Box p={{ base: "3", md: "4" }}>
+    <Box p="2">
       <VStack gap="5" align="stretch">
-        <Box mb="2">
-          <HStack gap="2" alignItems="center" mb="2">
+        <Box >
+          <HStack gap="2" alignItems="center" >
             <Heading size={{ base: "lg", sm: "xl" }} fontWeight="700" style={{ background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
               Company Profile
             </Heading>

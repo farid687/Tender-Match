@@ -3,14 +3,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useGlobal } from '@/context'
-import { useAuth } from '@/hooks/useAuth'
-import { supabase } from '@/lib/supabase'
-import { toaster } from '@/elements/toaster'
-import { Menu } from '@/elements/menu'
-import { Avatar } from '@/elements/avatar'
-import Uploader from '@/elements/uploader'
 import { Box, VStack, HStack, Text } from '@chakra-ui/react'
-import { LuUserRound, LuLogOut, LuChevronDown, LuFileText } from 'react-icons/lu'
+import { LuUserRound, LuFileText, LuPanelLeft, LuPanelLeftClose } from 'react-icons/lu'
 
 export const SIDENAV_WIDTH_EXPANDED = 280
 export const SIDENAV_WIDTH_COLLAPSED = 50 // ✅ reduced from 72
@@ -33,27 +27,7 @@ const navItems = [
 
 export function SideNav() {
   const pathname = usePathname()
-  const { user, sidenavCollapsed } = useGlobal()
-  const { signOut } = useAuth()
-
-  const userName = user?.first_name && user?.last_name
-    ? `${user.first_name} ${user.last_name}`
-    : user?.first_name || user?.last_name || 'User'
-  const companyName = user?.company_name || ''
-  const userEmail = user?.email || ''
-  const profileImg = user?.profile_img || ''
-
-  const handleProfileImgChange = async (url) => {
-    if (!supabase) return
-    try {
-      const { error } = await supabase.auth.updateUser({ data: { profile_img: url || null } })
-      if (error) throw error
-      toaster.create({ title: url ? 'Profile picture updated' : 'Profile picture removed', type: 'success' })
-    } catch (e) {
-      console.error('Failed to update profile image:', e)
-      toaster.create({ title: 'Failed to save profile picture', type: 'error' })
-    }
-  }
+  const { user, sidenavCollapsed, setSidenavCollapsed } = useGlobal()
 
   // Don't show sidenav on auth routes, onboarding route, or when user is not authenticated
   if (!user || pathname === '/app/onboarding') {
@@ -80,8 +54,8 @@ export function SideNav() {
       boxShadow="0 4px 20px rgba(0, 0, 0, 0.05)"
       overflowY="auto"
       overflowX="hidden"
-      py="3"
-      px={sidenavCollapsed ? '2' : '0'}
+      py="4"
+      // px={sidenavCollapsed ? '2' : '0'}
       transition={SIDENAV_TRANSITION}
       style={{
         background: "linear-gradient(180deg, #ffffff 0%, #fafafa 100%)"
@@ -134,6 +108,7 @@ export function SideNav() {
                 overflow="hidden"                         // 👈 actual clipping happens here
                 transition="height 0.18s ease"
                 display="flex"
+                pl={sidenavCollapsed ? "3" : "0"}
                 alignItems="center"                  // 👈 top-aligned so only top half shows
               >
                 <Box
@@ -191,7 +166,7 @@ export function SideNav() {
                   >
                     <Box
                       as={Icon}
-                      size="14px"
+                      size="17px"
                       flexShrink={0}
                       style={{
                         color: isActive ? "#1f6ae1" : "#666",
@@ -217,9 +192,8 @@ export function SideNav() {
                       left="0"
                       top="50%"
                       transform="translateY(-50%)"
-                      w="3px"
+                      w={sidenavCollapsed ? "3px" :  "5px"}
                       h="full"
-                      
                       style={{
                         background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)",
                         boxShadow: "0 2px 8px rgba(31, 106, 225, 0.4)"
@@ -232,100 +206,36 @@ export function SideNav() {
           })}
         </VStack>
 
-        {/* User Menu */}
-        <Box borderTopWidth="1px" borderTopStyle="solid" borderTopColor="#d8d8d8"  w="full">
-          <Menu
-            positioning={{ placement: 'right-start' }}
-            trigger={
-              <Box
-                as="button"
-                w="full"
-                px={sidenavCollapsed ? 3 : 4}
-                py="3"
-               
-                display="flex"
-                alignItems="center"
-                justifyContent={sidenavCollapsed ? "center" : "flex-start"}
-                cursor="pointer"
-                bg="transparent"
-                border="none"
-                color="#666"
-                transition="all 0.18s ease, background 0.15s ease"
-                _hover={{ bg: "rgba(31, 106, 225, 0.06)", color: "#1f6ae1" }}
-                aria-label="User menu"
-              >
-                <Box
-                  flexShrink={0}
-                  borderRadius="full"
-                  overflow="hidden"
-                  style={{ boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)" }}
-                >
-                  <Avatar
-                    name={userName}
-                    src={user?.profile_img || user?.avatar_url || user?.profile_image_url}
-                    size="sm"
-                    className="!bg-primary !text-white"
-                  />
-                </Box>
-                {!sidenavCollapsed && (
-                  <HStack flex={1} minW={0} ml={3} gap={2} overflow="hidden">
-                    <VStack align="start" gap={0} flex={1} minW={0}>
-                      <Text fontSize="sm" fontWeight="600" noOfLines={1}>{userName}</Text>
-                      {companyName && (
-                        <Text fontSize="xs" color="gray.500" noOfLines={1}>{companyName}</Text>
-                      )}
-                    </VStack>
-                    <Box as={LuChevronDown} size={16} flexShrink={0} />
-                  </HStack>
-                )}
-              </Box>
-            }
-            items={[
-              {
-                id: 'user-name',
-                children: (
-                  <Box px="3" py="1" w="full" borderRadius="lg">
-                    <Text fontSize="sm" fontWeight="700" className="!text-black">{userName}</Text>
-                    {userEmail && (
-                      <Text fontSize="xs" className="!text-dark-gray" mt="1">{userEmail}</Text>
-                    )}
-                  </Box>
-                )
-              },
-              { type: 'separator' },
-              {
-                id: 'profile-picture',
-                children: (
-                  <Box px="3" py="2" onClick={(e) => e.stopPropagation()}>
-                    <Uploader
-                      label="Profile picture"
-                      entityId={user?.sub}
-                      baseName="profile"
-                      value={profileImg}
-                      onChange={handleProfileImgChange}
-                      accept="image/png,image/jpeg,image/webp"
-                    />
-                  </Box>
-                )
-              },
-              { type: 'separator' },
-              {
-                id: 'profile',
-                label: 'Profile',
-                icon: <Box as={LuUserRound} style={{ color: "#1f6ae1" }} />,
-                href: '/app/profile',
-                color: '#1f6ae1'
-              },
-              { type: 'separator' },
-              {
-                id: 'sign-out',
-                label: 'Sign Out',
-                icon: <Box as={LuLogOut} style={{ color: "#ef4444" }} />,
-                onClick: signOut,
-                color: '#ef4444'
-              }
-            ]}
-          />
+        {/* Collapse toggle */}
+        <Box borderTopWidth="1px" borderTopStyle="solid" borderTopColor="#d8d8d8" w="full">
+          <Box
+            as="button"
+            w="full"
+            px={sidenavCollapsed ? 3 : 4}
+            py="3"
+            display="flex"
+            alignItems="center"
+            justifyContent={sidenavCollapsed ? "center" : "flex-start"}
+            cursor="pointer"
+            bg="transparent"
+            border="none"
+            color="#666"
+            transition="all 0.18s ease, background 0.15s ease"
+            _hover={{ bg: "rgba(31, 106, 225, 0.06)", color: "#1f6ae1" }}
+            onClick={() => setSidenavCollapsed((c) => !c)}
+            aria-label={sidenavCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <Box
+              as={sidenavCollapsed ? LuPanelLeft : LuPanelLeftClose}
+              size={22}
+              flexShrink={0}
+            />
+            {!sidenavCollapsed && (
+              <Text fontSize="sm" fontWeight="500" ml={3} whiteSpace="nowrap">
+                Collapse
+              </Text>
+            )}
+          </Box>
         </Box>
       </VStack>
     </Box>

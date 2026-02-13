@@ -8,6 +8,7 @@ import { InputField } from '@/elements/input'
 import { Box, Text, Heading, VStack, HStack } from '@chakra-ui/react'
 import { passwordStrength } from 'check-password-strength'
 import { useAuth } from '@/hooks/useAuth'
+import { LuSave } from 'react-icons/lu'
 
 export default function ChangePasswordTab() {
   const auth = useAuth()
@@ -59,9 +60,9 @@ export default function ChangePasswordTab() {
   }
 
   return (
-    <Box p={{ base: "3", md: "4" }}>
+    <Box p="2">
       <VStack gap="5" align="stretch">
-        <Box mb="2">
+        <Box >
           <Heading size={{ base: "lg", sm: "xl" }} fontWeight="700" style={{ background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
             Change Password
           </Heading>
@@ -89,9 +90,13 @@ export default function ChangePasswordTab() {
               })()}
             </Box>
             <InputField label="Confirm Password" name="confirmPassword" type="password" placeholder="Confirm your new password" value={passwordForm.confirmPassword} onChange={handlePasswordChange} required invalid={!!(passwordForm.confirmPassword && passwordForm.password !== passwordForm.confirmPassword)} errorText={passwordForm.confirmPassword && passwordForm.password !== passwordForm.confirmPassword ? "Passwords do not match" : undefined} />
-            <Button type="button" onClick={handlePasswordSubmit} loading={isUpdatingPassword} loadingText="Updating..." size="md" style={{ background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)", color: "white", fontWeight: "600", padding: "12px 24px", borderRadius: "12px", boxShadow: "0 4px 14px rgba(31, 106, 225, 0.3)" }} _hover={{ transform: "translateY(-2px)", boxShadow: "0 6px 20px rgba(31, 106, 225, 0.4)" }}>
-              Update Password
-            </Button>
+           
+
+            <Box display="flex" justifyContent="flex-end">
+          <Button type="button"  onClick={handlePasswordSubmit} loading={isUpdatingPassword} loadingText="Updating..." size="md" leftIcon={<LuSave size={18} />} style={{ background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)", color: "white", fontWeight: "600" }} _hover={{ transform: "translateY(-2px)", boxShadow: "0 6px 20px rgba(31, 106, 225, 0.4)" }}>
+          Update Password
+          </Button>
+        </Box>
           </VStack>
         </Box>
       </VStack>

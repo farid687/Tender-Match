@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useCompany } from '@/hooks/useCompany'
 import { Box } from '@chakra-ui/react'
@@ -8,14 +8,15 @@ import { Loading } from '@/elements/loading'
 import { useGlobal } from '@/context'
 import ProfileDetailHeader from './components/ProfileDetailHeader'
 import ProfileTabs from './components/ProfileTabs'
-import { CONTRACT_VALUE_MIN, CONTRACT_VALUE_MAX, parseCustomContractRange } from './variables'
+import { computeProgress } from './variables'
 
 export default function ProfilePage() {
   const { user, company, loading: authLoading } = useGlobal()
-  const { getCompany } = useCompany()
+  const { getCompany, loading: companyLoading } = useCompany()
   const [regions, setRegions] = useState([])
   const [cpvs, setCpvs] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [draft, setDraft] = useState({})
 
   useEffect(() => {
     if (!supabase) return
@@ -43,21 +44,16 @@ export default function ProfilePage() {
     getCompany(user.company_id)
   }, [user?.company_id, getCompany])
 
-  const progressPercentage = useMemo(() => {
-    if (!company) return 0
-    let completed = 0
-    const total = 6
-    if (company.region?.trim()) completed++
-    if (company.worker_size?.trim()) completed++
-    if (Array.isArray(company.cpvs) && company.cpvs.length > 0) completed++
-    if (Array.isArray(company.contract_type) && company.contract_type.length > 0) completed++
-    const cr = company.contract_range != null ? (typeof company.contract_range === 'number' ? company.contract_range : parseCustomContractRange(company.contract_range)) : null
-    if (cr != null && cr >= CONTRACT_VALUE_MIN && cr <= CONTRACT_VALUE_MAX) completed++
-    if (Array.isArray(company.primary_goal) && company.primary_goal.length > 0) completed++
-    return total > 0 ? Math.round((completed / total) * 100) : 0
-  }, [company])
+  const onDraftChange = useCallback((partial) => {
+    setDraft(prev => ({ ...prev, ...partial }))
+  }, [])
 
-  if (authLoading || isLoading) {
+  const progressPercentage = useMemo(() => {
+    const data = company ? { ...company, ...draft } : draft
+    return computeProgress(data)
+  }, [company, draft])
+
+  if (authLoading || isLoading || companyLoading) {
     return <Loading fullScreen message="Loading profile data..." />
   }
 
@@ -76,12 +72,13 @@ export default function ProfilePage() {
     >
       <Box w="full" position="relative" zIndex={1} minW={0}>
         <ProfileDetailHeader progressPercentage={progressPercentage} />
-        <Box bg="white" borderRadius="2xl" overflow="visible" position="relative" pt={{ base: "4", md: "5" }} pb="0">
+        <Box bg="white" borderRadius="2xl" overflow="visible" position="relative"  pb="0">
           <ProfileTabs
             company={company}
             regions={regions}
             cpvs={cpvs}
             companyId={user?.company_id}
+            onDraftChange={onDraftChange}
           />
         </Box>
       </Box>

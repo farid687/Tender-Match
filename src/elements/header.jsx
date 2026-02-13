@@ -4,14 +4,11 @@
 import { usePathname } from 'next/navigation'
 import { useGlobal } from '@/context'
 import { useAuth } from '@/hooks/useAuth'
-import { supabase } from '@/lib/supabase'
-import { toaster } from '@/elements/toaster'
 import { Avatar } from '@/elements/avatar'
 import { Menu } from '@/elements/menu'
-import Uploader from '@/elements/uploader'
 
 import { Box, HStack, VStack, Text, Heading } from '@chakra-ui/react'
-import { LuPanelLeft, LuPanelLeftClose, LuUserRound, LuLogOut, LuChevronDown } from 'react-icons/lu'
+import { LuUserRound, LuLogOut, LuChevronDown } from 'react-icons/lu'
 
 // Function to get page name from pathname
 function getPageName(pathname) {
@@ -38,7 +35,7 @@ function getPageName(pathname) {
 }
 
 export function Header() {
-  const { user, sidenavCollapsed, setSidenavCollapsed } = useGlobal()
+  const { user } = useGlobal()
   const { signOut } = useAuth()
   const pathname = usePathname()
 
@@ -53,19 +50,6 @@ export function Header() {
     : user?.first_name || user?.last_name || 'User'
   const companyName = user?.company_name || ''
   const userEmail = user?.email || ''
-  const profileImg = user?.profile_img || ''
-
-  const handleProfileImgChange = async (url) => {
-    if (!supabase) return
-    try {
-      const { error } = await supabase.auth.updateUser({ data: { profile_img: url || null } })
-      if (error) throw error
-      toaster.create({ title: url ? 'Profile picture updated' : 'Profile picture removed', type: 'success' })
-    } catch (e) {
-      console.error('Failed to update profile image:', e)
-      toaster.create({ title: 'Failed to save profile picture', type: 'error' })
-    }
-  }
 
   return (
     <Box
@@ -74,7 +58,7 @@ export function Header() {
       position="sticky"
       top="0"
       zIndex="1000"
-      py={{ base: "4", md: "5" }}
+      py={{ base: "4", md: "3" }}
       px={{ sm: 3, md: 5, lg: 0 }}
       className="header-glass"
       style={{
@@ -117,8 +101,8 @@ export function Header() {
           </HStack>
 
           <HStack gap={{ base: 2, md: 4 }} flexShrink={0}>
-            {/* User menu - shown on mobile when sidenav is hidden */}
-            <Box display={{ base: 'block', lg: 'none' }}>
+            {/* User menu */}
+            <Box>
               <Menu
                 trigger={
                   <Box
@@ -126,11 +110,13 @@ export function Header() {
                     display="flex"
                     alignItems="center"
                     gap={2}
-                    px={2}
+                    px={{ base: 2, sm: 3 }}
                     py={1}
                     borderRadius="full"
                     cursor="pointer"
                     className="header-user-pill"
+                    minW={0}
+                    
                     style={{
                       background: "rgba(255, 255, 255, 0.65)",
                       backdropFilter: "blur(16px)",
@@ -142,10 +128,18 @@ export function Header() {
                     <Avatar
                       name={userName}
                       src={user?.profile_img || user?.avatar_url || user?.profile_image_url}
-                      size="sm"
-                      className="!bg-primary !text-white"
+                      size="xl"
+                     border="1px solid rgba(255, 255, 255, 0.7)"
+                      flexShrink={0}
+                      p="0.5"
                     />
-                    <Box as={LuChevronDown} size={18} color="gray.500" />
+                    <VStack align="start" gap={0} minW={0} flex={1} display={{ base: 'none', sm: 'flex' }}>
+                      <Text fontSize="sm" fontWeight="600" noOfLines={1}>{userName}</Text>
+                      {companyName && (
+                        <Text fontSize="xs" color="gray.500" noOfLines={1}>{companyName}</Text>
+                      )}
+                    </VStack>
+                    <Box as={LuChevronDown} size={18} color="gray.500" flexShrink={0} />
                   </Box>
                 }
                 items={[
@@ -159,41 +153,10 @@ export function Header() {
                     )
                   },
                   { type: 'separator' },
-                  {
-                    id: 'profile-picture',
-                    children: (
-                      <Box px="3" py="2" onClick={(e) => e.stopPropagation()}>
-                        <Uploader label="Profile picture" entityId={user?.sub} baseName="profile" value={profileImg} onChange={handleProfileImgChange} accept="image/png,image/jpeg,image/webp" />
-                      </Box>
-                    )
-                  },
-                  { type: 'separator' },
                   { id: 'profile', label: 'Profile', icon: <Box as={LuUserRound} style={{ color: "#1f6ae1" }} />, href: '/app/profile', color: '#1f6ae1' },
                   { type: 'separator' },
                   { id: 'sign-out', label: 'Sign Out', icon: <Box as={LuLogOut} style={{ color: "#ef4444" }} />, onClick: signOut, color: '#ef4444' }
                 ]}
-              />
-            </Box>
-            {/* Collapse toggle - shown when sidenav is visible (lg+) */}
-            <Box
-              as="button"
-              display={{ base: 'none', lg: 'flex' }}
-              alignItems="center"
-              justifyContent="center"
-              p="2"
-              borderRadius="full"
-              cursor="pointer"
-              bg="transparent"
-              border="none"
-              color="#666"
-              transition="all 0.18s ease"
-              _hover={{ bg: "rgba(31, 106, 225, 0.08)", color: "#1f6ae1" }}
-              onClick={() => setSidenavCollapsed((c) => !c)}
-              aria-label={sidenavCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              <Box
-                as={sidenavCollapsed ? LuPanelLeft : LuPanelLeftClose}
-                size={22}
               />
             </Box>
           </HStack>

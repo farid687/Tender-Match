@@ -208,11 +208,11 @@ export default function PortfolioTab({ companyId }) {
   }
 
   return (
-    <Box p={{ base: "3", md: "4" }}>
+    <Box p="2">
       <VStack gap="5" align="stretch">
-        <Box mb="2" display="flex" justifyContent="space-between" alignItems="flex-start" gap="4">
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap="4">
           <Box flex="1">
-            <HStack gap="2" alignItems="center" mb="2">
+            <HStack gap="2" alignItems="center" >
               <Heading size={{ base: "lg", sm: "xl" }} fontWeight="700" style={{ background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
                 Portfolio Projects
                 <Text as="span" fontWeight="600" color="#1f6ae1" ml="2">({portfolios.filter(p => !p.isDelete).length} of {MAX_PORTFOLIOS})</Text>

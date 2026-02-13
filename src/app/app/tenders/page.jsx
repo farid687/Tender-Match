@@ -48,7 +48,7 @@ export default function TendersPage() {
   const cpvByCode = useMemo(() => {
     const map = {}
     ;(cpvsList || []).forEach((c) => {
-      if (c.cpv_code != null) map[String(c.cpv_code).trim()] = { main_cpv_description: c.main_cpv_description ?? '', category: c.category ?? '' }
+      if (c.cpv_code != null) map[String(c.cpv_code).trim()] = { main_cpv_description: c.main_cpv_description ?? '' }
     })
     return map
   }, [cpvsList])
@@ -72,7 +72,7 @@ export default function TendersPage() {
     try {
       const { data, error } = await supabase
         .from('cpvs')
-        .select('cpv_code, main_cpv_description, category')
+        .select('cpv_code, main_cpv_description')
         .order('cpv_code', { ascending: true })
       if (error) {
         console.error('CPVs fetch error:', error)
@@ -214,9 +214,8 @@ export default function TendersPage() {
     const main = row?.cpv_main
     if (main == null || main === '') return '—'
     const info = getCpvInfo(main)
-    if (!info) return main
-    const parts = [info.category, info.main_cpv_description].filter(Boolean)
-    return parts.length ? `${main} – ${parts.join(' – ')}` : main
+    if (!info?.main_cpv_description) return main
+    return `${main} – ${info.main_cpv_description}`
   }, [getCpvInfo])
 
   const platformItems = useMemo(

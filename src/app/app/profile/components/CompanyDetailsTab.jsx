@@ -16,7 +16,7 @@ import { Tooltip } from '@/elements/tooltip'
 import Uploader from '@/elements/uploader'
 import { primaryGoalOptions, targetTendersOptions } from '../variables'
 
-export default function CompanyDetailsTab({ company, companyId }) {
+export default function CompanyDetailsTab({ company, companyId, onDraftChange }) {
   const { getCompany } = useCompany()
   const [formData, setFormData] = useState({
     primary_goal: [],
@@ -87,6 +87,12 @@ export default function CompanyDetailsTab({ company, companyId }) {
       }))
     }
   }, [company])
+
+  useEffect(() => {
+    if (onDraftChange) {
+      onDraftChange({ primary_goal: Array.isArray(formData.primary_goal) ? formData.primary_goal : [] })
+    }
+  }, [onDraftChange, formData.primary_goal])
 
   useEffect(() => {
     if (!supabase) return
@@ -223,10 +229,10 @@ export default function CompanyDetailsTab({ company, companyId }) {
   }
 
   return (
-    <Box p={{ base: "3", md: "4" }}>
+    <Box p="2">
       <VStack gap="5" align="stretch">
-        <Box mb="2">
-          <HStack gap="2" alignItems="center" mb="2">
+        <Box >
+          <HStack gap="2" alignItems="center" >
             <Heading size={{ base: "lg", sm: "xl" }} fontWeight="700" style={{ background: "linear-gradient(135deg, #1f6ae1 0%, #6b4eff 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
               Company Details
             </Heading>
