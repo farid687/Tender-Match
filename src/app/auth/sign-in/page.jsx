@@ -122,7 +122,7 @@ export default function SignInPage() {
               >
                 <Box 
                   as="img" 
-                  src="/assets/MTM_Logo.png" 
+                  src="/assets/new_logo.png" 
                   alt="Logo" 
                   w={{ base: "100px", sm: "120px", md: "140px" }}
                   h="auto"
