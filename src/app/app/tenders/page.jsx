@@ -1,41 +1,33 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useGlobal } from '@/context'
 import { Box, Text, VStack, HStack, SimpleGrid, Badge } from '@chakra-ui/react'
-import { LuArrowUpDown, LuFilter } from 'react-icons/lu'
+import { LuFilter, LuSearch } from 'react-icons/lu'
 import { Button } from '@/elements/button'
 import { IconButton } from '@/elements/icon-button'
 import { InputField } from '@/elements/input'
 import { SelectField } from '@/elements/select'
 import { Loading } from '@/elements/loading'
+import { toaster } from '@/elements/toaster'
 import TenderCard from './components/TenderCard'
+import { SearchInput } from '@/elements/search-input'
 import {
-  BOOLEAN_FILTER_OPTIONS,
   CARDS_PER_PAGE,
+  DEFAULT_FILTERS,
+  REGION_FILTER_ITEMS,
+  TIME_CATEGORIES,
+  getTimeBucket,
 } from './variables'
 
-const DEFAULT_FILTERS = {
-  tender_status: '',
-  contract_nature: '',
-  is_european: 'any',
-  is_digital_submission_possible: 'any',
-  platform: '',
-  publication_date_from: '',
-  publication_date_to: '',
-  estimated_value_min: '',
-  estimated_value_max: '',
-}
-
-const SORT_OPTIONS = [
-  { id: 'publication_datetime', name: 'Publication date' },
-  { id: 'closing_date', name: 'Deadline' },
-  { id: 'estimated_value_amount', name: 'Estimated value' },
-]
+const SEARCH_DEBOUNCE_MS = 300
 
 export default function TendersPage() {
+  const { user } = useGlobal()
+  const userId = user?.sub ?? null
+
   const [tenders, setTenders] = useState([])
-  const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [filterOpen, setFilterOpen] = useState(false)
@@ -44,6 +36,76 @@ export default function TendersPage() {
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(null)
   const [cpvsList, setCpvsList] = useState([])
+  const [timeCategory, setTimeCategory] = useState('all')
+  const [searchTitle, setSearchTitle] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchDebounceRef = useRef(null)
+  const [favourites, setFavourites] = useState([])
+  const [bookmarkLoading, setBookmarkLoading] = useState(false)
+
+  // Debounce search so fetch runs after user stops typing
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    searchDebounceRef.current = setTimeout(() => {
+      setSearchQuery(searchTitle)
+      setPage(1)
+    }, SEARCH_DEBOUNCE_MS)
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    }
+  }, [searchTitle])
+
+  const fetchBookmarks = useCallback(async () => {
+    if (!userId) {
+      setFavourites([])
+      return
+    }
+    const { data, error } = await supabase
+      .from('bookmark')
+      .select('tender_id')
+      .eq('user_id', userId)
+    if (error) {
+      console.error('Bookmark fetch error:', error)
+      setFavourites([])
+      toaster.create({ title: 'Could not load saved tenders', description: error.message, type: 'error' })
+      return
+    }
+    const ids = (data ?? []).map((row) => row.tender_id).filter(Boolean)
+    setFavourites(ids)
+  }, [userId, supabase])
+
+  const handleToggleBookmark = useCallback(async (tenderId) => {
+    if (!userId || !tenderId) return
+    setBookmarkLoading(true)
+    try {
+      const isBookmarked = favourites.includes(tenderId)
+      if (isBookmarked) {
+        const { error } = await supabase
+          .from('bookmark')
+          .delete()
+          .eq('user_id', userId)
+          .eq('tender_id', tenderId)
+        if (error) {
+          console.error('Bookmark remove error:', error)
+          toaster.create({ title: 'Could not remove bookmark', description: error.message, type: 'error' })
+          return
+        }
+        setFavourites((prev) => prev.filter((id) => id !== tenderId))
+      } else {
+        const { error } = await supabase
+          .from('bookmark')
+          .insert({ user_id: userId, tender_id: tenderId })
+        if (error) {
+          console.error('Bookmark add error:', error)
+          toaster.create({ title: 'Could not save tender', description: error.message, type: 'error' })
+          return
+        }
+        setFavourites((prev) => [...prev, tenderId])
+      }
+    } finally {
+      setBookmarkLoading(false)
+    }
+  }, [userId, favourites, supabase])
 
   const cpvByCode = useMemo(() => {
     const map = {}
@@ -69,6 +131,7 @@ export default function TendersPage() {
   }, [tenders])
 
   const fetchCpvs = useCallback(async () => {
+    if (!supabase) return
     try {
       const { data, error } = await supabase
         .from('cpvs')
@@ -83,13 +146,16 @@ export default function TendersPage() {
     } catch {
       setCpvsList([])
     }
-  }, [])
+  }, [supabase])
 
   const fetchTenders = useCallback(async () => {
-    if (!supabase) return
-   
-
+    if (!supabase) {
+      setLoading(false)
+      setFetchError('Unable to connect.')
+      return
+    }
     setLoading(true)
+    setFetchError(null)
     try {
       let query = supabase
         .from('tenders')
@@ -114,7 +180,8 @@ export default function TendersPage() {
           publication_datetime,
           closing_date,
           platform,
-          client_name
+          client_name,
+          tenderned_url
           `,
           { count: 'exact' }
         )
@@ -132,11 +199,11 @@ export default function TendersPage() {
       if (filters.is_european === 'no')
         query = query.eq('is_european', false)
   
-      if (filters.is_digital_submission_possible === 'yes')
-        query = query.eq('is_digital_submission_possible', true)
+      // if (filters.is_digital_submission_possible === 'yes')
+      //   query = query.eq('is_digital_submission_possible', true)
   
-      if (filters.is_digital_submission_possible === 'no')
-        query = query.eq('is_digital_submission_possible', false)
+      // if (filters.is_digital_submission_possible === 'no')
+      //   query = query.eq('is_digital_submission_possible', false)
   
       if (filters.platform)
         query = query.eq('platform', filters.platform)
@@ -147,14 +214,14 @@ export default function TendersPage() {
       if (filters.publication_date_to)
         query = query.lte('publication_datetime', filters.publication_date_to)
   
-      if (filters.estimated_value_min)
-        query = query.gte('estimated_value_amount', Number(filters.estimated_value_min))
-  
       if (filters.estimated_value_max)
         query = query.lte('estimated_value_amount', Number(filters.estimated_value_max))
-  
-      const from = (page - 1) * CARDS_PER_PAGE
-      query = query.range(from, from + CARDS_PER_PAGE - 1)
+
+      if (searchQuery?.trim())
+        query = query.ilike('title', `%${searchQuery.trim()}%`)
+
+      // No time filter here — time category is applied on frontend from closing_date
+      query = query.range(0, 999)
 
       const { data, error, count } = await query
 
@@ -162,25 +229,51 @@ export default function TendersPage() {
         console.error('Tenders fetch error:', error)
         setFetchError(error.message)
         setTenders([])
-        setTotalCount(0)
         return
       }
   
       setFetchError(null)
-      setTenders(data)
-      setTotalCount(count ?? 0)
+      setTenders(data ?? [])
 
     } catch (err) {
       console.error(err)
       setFetchError(err?.message ?? 'Failed to load tenders')
       setTenders([])
-      setTotalCount(0)
     } finally {
       setLoading(false)
     }
-  }, [page, filters, sortBy, sortOrder])
-  
-  
+  }, [filters, sortBy, sortOrder, searchQuery, supabase])
+
+  // Time buckets and filtering by closing_date — frontend only
+  const timeCounts = useMemo(() => {
+    const c = { closing_soon: 0, this_month: 0, later: 0 }
+    tenders.forEach((t) => {
+      const b = getTimeBucket(t.closing_date)
+      if (b && c[b] !== undefined) c[b]++
+    })
+    return c
+  }, [tenders])
+
+  const tendersByTime = useMemo(() => {
+    if (timeCategory === 'all') return tenders
+    return tenders.filter((t) => getTimeBucket(t.closing_date) === timeCategory)
+  }, [tenders, timeCategory])
+
+  const totalFiltered = tendersByTime.length
+  const displayedTenders = useMemo(
+    () => tendersByTime.slice((page - 1) * CARDS_PER_PAGE, page * CARDS_PER_PAGE),
+    [tendersByTime, page]
+  )
+
+  const favouritesSet = useMemo(() => new Set(favourites), [favourites])
+
+  useEffect(() => {
+    if (!userId) {
+      setFavourites([])
+      return
+    }
+    fetchBookmarks()
+  }, [userId, fetchBookmarks])
 
   useEffect(() => {
     fetchCpvs()
@@ -200,7 +293,7 @@ export default function TendersPage() {
     setPage(1)
   }, [])
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / CARDS_PER_PAGE))
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / CARDS_PER_PAGE))
 
   const activeFilterCount = useMemo(
     () => Object.keys(DEFAULT_FILTERS).filter((k) => filters[k] !== DEFAULT_FILTERS[k]).length,
@@ -233,6 +326,8 @@ export default function TendersPage() {
     [contractNatureOptions]
   )
 
+  const regionItems = REGION_FILTER_ITEMS
+
   return (
     <Box
       minH={{ base: '90dvh', lg: '90vh' }}
@@ -241,10 +336,10 @@ export default function TendersPage() {
       px={{ base: 3, md: 4 }}
     >
       <Box w="full" mx="auto">
-        {/* Header: count left, Sort / Filters right */}
+        {/* Header: time filter left | search + region + Filters right */}
         <Box
           mb={3}
-          py={2.5}
+          py={3}
           px={{ base: 3, md: 4 }}
           bg="var(--color-white)"
           borderRadius="lg"
@@ -253,49 +348,103 @@ export default function TendersPage() {
           display="flex"
           flexWrap="wrap"
           alignItems="center"
-          justifyContent="space-between"
           gap={3}
         >
-          <HStack gap={2}>
-            <Text fontWeight="700" fontSize="lg" color="var(--color-black)">
-              Tenders: <Text as="span" color="var(--color-primary)">{totalCount}</Text>
-            </Text>
+          {/* Left: time category filter — segmented control */}
+          <HStack
+            gap={0}
+            flexWrap="wrap"
+            alignItems="center"
+            p={0.5}
+            borderRadius="lg"
+            bg="var(--color-very-light-gray)"
+            borderWidth="1px"
+            borderColor="var(--color-gray)"
+          >
+            {TIME_CATEGORIES.map((cat) => (
+              <Box
+                as="button"
+                type="button"
+                key={cat.id}
+                display="inline-flex"
+                alignItems="center"
+                gap={2}
+                px={3}
+                py={2}
+                borderRadius="md"
+                bg={timeCategory === cat.id ? 'var(--color-white)' : 'transparent'}
+                color={timeCategory === cat.id ? 'var(--color-black)' : 'var(--color-dark-gray)'}
+                fontWeight={timeCategory === cat.id ? '600' : '500'}
+                boxShadow={timeCategory === cat.id ? 'sm' : 'none'}
+                onClick={() => { setTimeCategory(cat.id); setPage(1) }}
+                _hover={{ bg: timeCategory === cat.id ? 'var(--color-white)' : 'rgba(0,0,0,0.04)' }}
+                transition="background 0.15s, box-shadow 0.15s"
+              >
+                {cat.id !== 'all' && (
+                  <Box
+                    w="2"
+                    h="2"
+                    borderRadius="full"
+                    bg={cat.color}
+                    flexShrink={0}
+                    opacity={timeCategory === cat.id ? 1 : 0.8}
+                  />
+                )}
+                <Text as="span" fontSize="sm">{cat.label}</Text>
+                <Text
+                  as="span"
+                  fontSize="xs"
+                  color={timeCategory === cat.id ? 'var(--color-dark-gray)' : 'var(--color-dark-gray)'}
+                  opacity={0.9}
+                >
+                  {cat.id === 'all' ? totalFiltered : (timeCounts[cat.id] ?? 0)}
+                </Text>
+              </Box>
+            ))}
           </HStack>
-          <HStack gap={2} flexWrap="wrap">
+
+          <Box flex="1" minW={2} />
+
+          {/* Right: search, region, Filters */}
+          <HStack gap={2} flexWrap="wrap" alignItems="center">
+            <Box width={{ base: '100%', sm: '320px' }}>
+              <SearchInput
+                placeholder="Search tenders..."
+                value={searchTitle}
+                onChange={(e) => setSearchTitle(e.target.value)}
+                size="sm"
+                showShortcut={false}
+                startElement={<Box display="flex" alignItems="center"><LuSearch size={18} style={{ color: 'var(--color-dark-gray)' }} /></Box>}
+                startElementProps={{ pr: 4 }}
+              />
+            </Box>
+
             <SelectField
               label=""
-              placeholder="Sort by"
-              items={SORT_OPTIONS}
-              value={sortBy ? [sortBy] : []}
-              onValueChange={(d) => {
-                const v = d.value?.[0]
-                if (v) setSortBy(v)
-              }}
+              size="sm"
+              width="100px"
+              placeholder="Region"
+              items={regionItems}
+              value={filters.is_european ? [filters.is_european] : ['any']}
+              onValueChange={(d) => updateFilter('is_european', d.value?.[0] ?? 'any')}
+              itemToValue={(item) => item.id}
+              itemToString={(item) => item.name}
             />
-            <HStack gap={1}>
-              <IconButton
-                aria-label="Sort order"
-                size="sm"
-                variant="outline"
-                onClick={() => setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'))}
-              >
-                <LuArrowUpDown size={16} />
-              </IconButton>
-              <Button
-                size="sm"
-                variant={filterOpen ? 'solid' : 'outline'}
-                colorPalette="primary"
-                onClick={() => setFilterOpen((o) => !o)}
-                leftIcon={<LuFilter size={16} />}
-              >
-                Filters
-                {hasFilters && (
-                  <Badge ml={1} size="sm" borderRadius="full" px={1.5} bg="white" color="var(--color-primary)">
-                    {activeFilterCount}
-                  </Badge>
-                )}
-              </Button>
-            </HStack>
+
+            <Button
+              size="sm"
+              variant={filterOpen ? 'solid' : 'outline'}
+              colorPalette="primary"
+              onClick={() => setFilterOpen((o) => !o)}
+              leftIcon={<LuFilter size={16} />}
+            >
+              Filters
+              {hasFilters && (
+                <Badge ml={1} size="sm" borderRadius="full" px={1.5} bg="white" color="var(--color-primary)">
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </Button>
           </HStack>
         </Box>
 
@@ -323,20 +472,6 @@ export default function TendersPage() {
                 placeholder="All"
                 value={filters.contract_nature ? [filters.contract_nature] : []}
                 onValueChange={(d) => updateFilter('contract_nature', d.value?.[0] ?? '')}
-              />
-              <SelectField
-                label="European"
-                items={BOOLEAN_FILTER_OPTIONS}
-                placeholder="Any"
-                value={filters.is_european ? [filters.is_european] : ['any']}
-                onValueChange={(d) => updateFilter('is_european', d.value?.[0] ?? 'any')}
-              />
-              <SelectField
-                label="Digital submission"
-                items={BOOLEAN_FILTER_OPTIONS}
-                placeholder="Any"
-                value={filters.is_digital_submission_possible ? [filters.is_digital_submission_possible] : ['any']}
-                onValueChange={(d) => updateFilter('is_digital_submission_possible', d.value?.[0] ?? 'any')}
               />
               <SelectField
                 label="Platform"
@@ -383,8 +518,8 @@ export default function TendersPage() {
         {loading ? (
           <Loading message="Loading tenders..." />
         ) : (
-          <VStack align="stretch" gap={2}>
-            {tenders.length === 0 ? (
+          <VStack align="stretch" gap={5}>
+            {totalFiltered === 0 ? (
               <Box
                 py={8}
                 px={4}
@@ -399,10 +534,28 @@ export default function TendersPage() {
                     ? `Unable to load tenders. ${fetchError}`
                     : 'No tenders match your filters. Try changing them.'}
                 </Text>
+                {fetchError && (
+                  <Button
+                    mt={4}
+                    size="sm"
+                    variant="solid"
+                    colorPalette="primary"
+                    onClick={() => fetchTenders()}
+                  >
+                    Retry
+                  </Button>
+                )}
               </Box>
             ) : (
-              tenders.map((t, index) => (
-                <TenderCard key={`tender-${index}`} t={t} cpvMainDisplay={cpvMainDisplay} />
+              displayedTenders.map((t, index) => (
+                <TenderCard
+                  key={`tender-${t.tender_id ?? index}`}
+                  t={t}
+                  cpvMainDisplay={cpvMainDisplay}
+                  isBookmarked={t?.tender_id ? favouritesSet.has(t.tender_id) : false}
+                  onSaveClick={t?.tender_id ? () => handleToggleBookmark(t.tender_id) : undefined}
+                  saveDisabled={bookmarkLoading}
+                />
               ))
             )}
 
@@ -419,7 +572,7 @@ export default function TendersPage() {
                 </IconButton>
                 <Text fontSize="md" color="var(--color-dark-gray)">
                   Page <Text as="span" fontWeight="700" color="var(--color-primary)">{page}</Text> of {totalPages}
-                  <Text as="span" color="var(--color-dark-gray)" ml={1}>({totalCount})</Text>
+                  <Text as="span" color="var(--color-dark-gray)" ml={1}>({totalFiltered})</Text>
                 </Text>
                 <IconButton
                   aria-label="Next page"

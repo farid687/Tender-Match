@@ -17,6 +17,7 @@ export const SearchInput = React.forwardRef(function SearchInput(props, ref) {
     onBlur,
     type = 'text',
     startElement,
+    startElementProps,
     endElement,
     keyboardShortcut = '⌘K',
     showShortcut = true,
@@ -24,7 +25,7 @@ export const SearchInput = React.forwardRef(function SearchInput(props, ref) {
   } = props
 
   return (
-    <InputGroup flex="1" startElement={startElement} endElement={endElement}>
+    <InputGroup flex="1" startElement={startElement} startElementProps={startElementProps} endElement={endElement}>
       <Input
         ref={ref}
         type={type}
