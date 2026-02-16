@@ -118,16 +118,16 @@ export default function SignInPage() {
                 display="flex" 
                 justifyContent="center" 
                 alignItems="center" 
-                mb={{ base: "4", md: "6" }}
+                
               >
                 <Box 
                   as="img" 
                   src="/assets/new_logo.png" 
                   alt="Logo" 
-                  w={{ base: "100px", sm: "120px", md: "140px" }}
+                  w={{ base: "200px", sm: "240px", md: "280px" }}
                   h="auto"
-                  maxH="160px"
-                  objectFit="contain"
+                  maxH="140px"
+                  objectFit="cover"
                   style={{ filter: "drop-shadow(0 4px 12px rgba(31, 106, 225, 0.15))" }}
                 />
               </Box>

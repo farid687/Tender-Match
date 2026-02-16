@@ -137,16 +137,16 @@ export default function RegisterPage() {
                 display="flex" 
                 justifyContent="center" 
                 alignItems="center" 
-                mb={{ base: "2", md: "3" }}
+               
               >
               <Box 
                   as="img" 
                   src="/assets/new_logo.png" 
                   alt="Logo" 
-                  w={{ base: "90px", sm: "110px", md: "140px" }}
+                  w={{ base: "200px", sm: "240px", md: "280px" }}
                   h="auto"
-                  maxH="160px"
-                  objectFit="contain"
+                  maxH="140px"
+                  objectFit="cover"
                   style={{ filter: "drop-shadow(0 4px 12px rgba(31, 106, 225, 0.15))" }}
                 />
               </Box>
