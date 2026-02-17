@@ -9,18 +9,37 @@ import {
   flexRender,
   createColumnHelper,
 } from '@tanstack/react-table'
+import { Box, Text, HStack } from '@chakra-ui/react'
 import { LuChevronUp, LuChevronDown, LuChevronLeft, LuChevronRight } from 'react-icons/lu'
+import { Badge } from '@chakra-ui/react'
+import { Checkbox } from '@/elements/checkbox'
+import { IconButton } from '@/elements/icon-button'
 
 const TableRow = React.memo(({ row, index }) => {
   return (
     <tr
-      className={`border-mixin ${
-        index % 2 === 0 ? '!bg-white' : '!bg-light-gray'
-      } hover:bg-gray transition-colors`}
-      style={{ '--border-width': '0 0 1px 0', '--border-color': 'rgb(229 231 235)' }}
+      style={{
+        borderBottom: '1px solid var(--color-gray)',
+        background: index % 2 === 0 ? 'var(--color-white)' : 'var(--color-very-light-gray)',
+        transition: 'background 0.15s',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = 'rgba(var(--color-primary-rgb), 0.06)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = index % 2 === 0 ? 'var(--color-white)' : 'var(--color-very-light-gray)'
+      }}
     >
       {row.getVisibleCells().map((cell) => (
-        <td key={cell.id} className="!px-3 !py-3 text-sm text-dark-gray">
+        <td
+          key={cell.id}
+          style={{
+            padding: '12px 16px',
+            fontSize: '0.875rem',
+            color: 'var(--color-dark-gray)',
+            verticalAlign: 'middle',
+          }}
+        >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </td>
       ))}
@@ -48,88 +67,137 @@ const SortableHeader = React.memo(({ header }) => {
   }, [header, currentSort])
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="flex-1 text-primary">
+    <HStack gap={2} align="center" w="full">
+      <Text as="span" flex={1} fontSize="xs" fontWeight="700" color="var(--color-primary)" textTransform="uppercase" letterSpacing="wider">
         {flexRender(header.column.columnDef.header, header.getContext())}
-      </span>
+      </Text>
       {header.column.getCanSort() && (
-        <div className="flex flex-col gap-0">
-          <button
+        <HStack gap={0} flexShrink={0}>
+          <Box
+            as="button"
+            type="button"
+            p={0.5}
+            color={currentSort === 'asc' ? 'var(--color-primary)' : 'var(--color-dark-gray)'}
+            _hover={{ color: 'var(--color-black)' }}
+            transition="color 0.15s"
             onClick={handleAscending}
-            className={`p-0.5 transition-colors ${
-              currentSort === 'asc'
-                ? 'text-primary'
-                : 'text-dark-gray hover:text-black'
-            }`}
             aria-label="Sort ascending"
           >
-            <LuChevronUp className="w-3 h-3" />
-          </button>
-          <button
+            <LuChevronUp size={14} />
+          </Box>
+          <Box
+            as="button"
+            type="button"
+            p={0.5}
+            color={currentSort === 'desc' ? 'var(--color-primary)' : 'var(--color-dark-gray)'}
+            _hover={{ color: 'var(--color-black)' }}
+            transition="color 0.15s"
             onClick={handleDescending}
-            className={`p-0.5 transition-colors ${
-              currentSort === 'desc'
-                ? 'text-primary'
-                : 'text-dark-gray hover:text-black'
-            }`}
             aria-label="Sort descending"
           >
-            <LuChevronDown className="w-3 h-3" />
-          </button>
-        </div>
+            <LuChevronDown size={14} />
+          </Box>
+        </HStack>
       )}
-    </div>
+    </HStack>
   )
 })
 
-export function DataTable({ data = [], columnsData = [], defaultPageSize = 10 }) {
+export function DataTable({
+  data = [],
+  columnsData = [],
+  defaultPageSize = 10,
+  showSelectColumn = true,
+  getRowId,
+}) {
   const [sorting, setSorting] = useState([])
   const [rowSelection, setRowSelection] = useState({})
 
   const columnHelper = useMemo(() => createColumnHelper(), [])
 
   const columns = useMemo(() => {
-    const baseColumns = [
-      columnHelper.display({
-        id: 'select',
-        header: ({ table }) => (
-          <input
-            type="checkbox"
-            checked={table.getIsAllRowsSelected()}
-            onChange={table.getToggleAllRowsSelectedHandler()}
-            className="w-4 h-4 text-primary bg-white border-gray rounded focus:ring-2 focus:ring-primary cursor-pointer"
-          />
+    const dataColumns = columnsData.map((column) =>
+      columnHelper.accessor(column.accessor, {
+        id: column.accessor,
+        header: () => (
+          <Text as="span" fontSize="xs" fontWeight="700" color="var(--color-primary)" textTransform="uppercase" letterSpacing="wider">
+            {column.header ?? column.Header ?? column.accessor}
+          </Text>
         ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            onChange={row.getToggleSelectedHandler()}
-            className="w-4 h-4 text-primary bg-white border-gray rounded focus:ring-2 focus:ring-primary cursor-pointer"
-          />
-        ),
-      }),
-      ...columnsData.map((column) =>
-        columnHelper.accessor(column.accessor, {
-          id: column.accessor,
-          header: () => (
-            <span className="text-sm font-semibold text-primary">{column.header}</span>
-          ),
-          cell: (info) => {
-            const value = info.getValue()
+        cell: (info) => {
+          const value = info.getValue()
+          if (typeof column.cell === 'function') {
+            return column.cell(info)
+          }
+          if (column.accessor === 'is_digital_submission_possible') {
+            const v = value
+            const label = v === true || v === 'true' ? 'Yes' : 'No'
             return (
-              <span className="text-sm text-dark-gray">
-                {value || column.emptyValue || ''}
-              </span>
+              <Badge size="sm" colorPalette={v ? 'green' : 'gray'} borderRadius="md" px={2} py={0.5}>
+                {label}
+              </Badge>
             )
-          },
-          enableSorting: column.enableSorting !== false,
-        })
-      ),
-    ]
+          }
+          if (column.accessor === 'closing_date') {
+            if (value == null) return '—'
+            try {
+              const d = new Date(value)
+              return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString()
+            } catch {
+              return String(value)
+            }
+          }
+          if (column.accessor === 'estimated_value_amount') {
+            if (value == null || value === '') return '—'
+            const num = Number(value)
+            if (Number.isNaN(num)) return String(value)
+            return new Intl.NumberFormat(undefined, {
+              style: 'currency',
+              currency: 'EUR',
+              maximumFractionDigits: 0,
+            }).format(num)
+          }
+          return (
+            <Text as="span" fontSize="sm" color="var(--color-dark-gray)">
+              {value ?? column.emptyValue ?? ''}
+            </Text>
+          )
+        },
+        enableSorting: column.enableSorting !== false,
+      })
+    )
+    const baseColumns = showSelectColumn
+      ? [
+          columnHelper.display({
+            id: 'select',
+            header: ({ table }) => (
+              <Checkbox
+                checked={table.getIsAllRowsSelected()}
+                indeterminate={table.getIsSomeRowsSelected() && !table.getIsAllRowsSelected()}
+                onCheckedChange={(e) => {
+                  const checked = e.checked === true
+                  table.getToggleAllRowsSelectedHandler()({ target: { checked } })
+                }}
+                aria-label="Select all rows"
+              />
+            ),
+            cell: ({ row }) => (
+              <Checkbox
+                checked={row.getIsSelected()}
+                onCheckedChange={(e) => {
+                  const checked = e.checked === true
+                  row.getToggleSelectedHandler()({ target: { checked } })
+                }}
+                aria-label="Select row"
+              />
+            ),
+          }),
+          ...dataColumns,
+        ]
+      : dataColumns
 
     return baseColumns
-  }, [columnsData, columnHelper])
+  }, [columnsData, columnHelper, showSelectColumn])
 
   const table = useReactTable({
     data,
@@ -138,7 +206,7 @@ export function DataTable({ data = [], columnsData = [], defaultPageSize = 10 })
       sorting,
       rowSelection,
     },
-    enableRowSelection: true,
+    enableRowSelection: !!showSelectColumn,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -149,7 +217,7 @@ export function DataTable({ data = [], columnsData = [], defaultPageSize = 10 })
         pageSize: defaultPageSize,
       },
     },
-    getRowId: (row) => row.id?.toString() || Math.random().toString(),
+    getRowId: getRowId ?? ((row) => row.id?.toString() ?? row.tender_id?.toString() ?? Math.random().toString()),
   })
 
   const pageCount = table.getPageCount()
@@ -194,30 +262,42 @@ export function DataTable({ data = [], columnsData = [], defaultPageSize = 10 })
   const renderTableBody = () => {
     const rows = table.getRowModel().rows
     return rows.map((row, index) => (
-      <TableRow  key={row.id} row={row} index={index} />
+      <TableRow key={row.id} row={row} index={index} />
     ))
   }
 
   return (
-    <div className="w-full">
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse bg-white">
+    <Box w="full">
+      <Box overflowX="auto">
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            background: 'var(--color-white)',
+          }}
+        >
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="bg-gray">
+              <tr key={headerGroup.id} style={{ background: 'var(--color-very-light-gray)', borderBottom: '2px solid var(--color-gray)' }}>
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="!px-3 !py-3 text-left text-sm !font-semibold text-primary border-mixin"
-                    style={{ '--border-width': '0 0 1px 0', '--border-color': 'rgb(229 231 235)' }}
+                    style={{
+                      padding: '12px 16px',
+                      textAlign: 'left',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: 'var(--color-primary)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      borderBottom: '2px solid var(--color-gray)',
+                    }}
                   >
-                    {header.isPlaceholder ? null : (
-                      header.id === 'select' ? (
-                        flexRender(header.column.columnDef.header, header.getContext())
-                      ) : (
-                        <SortableHeader header={header} />
-                      )
-                    )}
+                    {header.isPlaceholder
+                      ? null
+                      : header.id === 'select'
+                        ? flexRender(header.column.columnDef.header, header.getContext())
+                        : <SortableHeader header={header} />}
                   </th>
                 ))}
               </tr>
@@ -225,60 +305,86 @@ export function DataTable({ data = [], columnsData = [], defaultPageSize = 10 })
           </thead>
           <tbody>{renderTableBody()}</tbody>
         </table>
-      </div>
+      </Box>
 
       {/* Pagination */}
-      <div className="flex items-center justify-center gap-2 mt-4 !p-6">
-        <button
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-          className="p-1.5 rounded border-mixin bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-light-gray transition-colors"
-          style={{ '--border-width': '1px', '--border-color': 'rgb(209 213 219)' }}
+      <HStack
+        justify="center"
+        align="center"
+        gap={4}
+        mt={0}
+        py={4}
+        px={4}
+        borderTopWidth="1px"
+        borderTopColor="var(--color-gray)"
+        bg="var(--color-very-light-gray)"
+        flexWrap="wrap"
+      >
+        <IconButton
           aria-label="Previous page"
+          size="sm"
+          variant="outline"
+          disabled={!table.getCanPreviousPage()}
+          onClick={() => table.previousPage()}
         >
-          <LuChevronLeft className="w-4 h-4 text-dark-gray" />
-        </button>
+          <LuChevronLeft size={18} />
+        </IconButton>
 
-        <div className="flex items-center gap-1">
+        <HStack gap={1} flexWrap="wrap" justify="center">
           {getPageNumbers().map((page, index) => {
             if (page === 'ellipsis') {
               return (
-                <span key={`ellipsis-${index}`} className="px-2 text-dark-gray">
-                  ...
-                </span>
+                <Text key={`ellipsis-${index}`} px={2} fontSize="sm" color="var(--color-dark-gray)">
+                  …
+                </Text>
               )
             }
 
+            const isActive = currentPage === page
             return (
-              <button
+              <Box
                 key={page}
+                as="button"
+                type="button"
+                minW="9"
+                h="9"
+                px={2}
+                rounded="lg"
+                borderWidth="1px"
+                borderColor={isActive ? 'var(--color-primary)' : 'var(--color-gray)'}
+                bg={isActive ? 'var(--color-primary)' : 'var(--color-white)'}
+                color={isActive ? 'var(--color-white)' : 'var(--color-primary)'}
+                fontWeight="700"
+                fontSize="sm"
+                transition="all 0.15s"
+                _hover={
+                  isActive
+                    ? {}
+                    : { bg: 'var(--color-very-light-gray)', borderColor: 'var(--color-primary)' }
+                }
+                _disabled={{ opacity: 0.6, cursor: 'not-allowed' }}
                 onClick={() => table.setPageIndex(page - 1)}
-                className={`min-w-[36px] h-9 rounded border-mixin transition-colors !font-semibold ${
-                  currentPage === page
-                    ? '!bg-primary !text-white'
-                    : 'bg-white !text-primary hover:bg-light-gray'
-                }`}
-                style={{ 
-                  '--border-width': '1px', 
-                  '--border-color': currentPage === page ? 'rgb(37 99 235)' : 'rgb(209 213 219)' 
-                }}
               >
                 {page}
-              </button>
+              </Box>
             )
           })}
-        </div>
+        </HStack>
 
-        <button
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-          className="p-1.5 rounded border-mixin bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-light-gray transition-colors"
-          style={{ '--border-width': '1px', '--border-color': 'rgb(209 213 219)' }}
+        <IconButton
           aria-label="Next page"
+          size="sm"
+          variant="outline"
+          disabled={!table.getCanNextPage()}
+          onClick={() => table.nextPage()}
         >
-          <LuChevronRight className="w-4 h-4 text-dark-gray" />
-        </button>
-      </div>
-    </div>
+          <LuChevronRight size={18} />
+        </IconButton>
+
+        <Text fontSize="sm" color="var(--color-dark-gray)" whiteSpace="nowrap">
+          Page <Text as="span" fontWeight="700" color="var(--color-primary)">{currentPage}</Text> of {pageCount || 1}
+        </Text>
+      </HStack>
+    </Box>
   )
 }

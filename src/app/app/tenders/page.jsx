@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useGlobal } from '@/context'
 import { Box, Text, VStack, HStack, SimpleGrid, Badge } from '@chakra-ui/react'
+import { DataTable } from '@/elements/data-table'
 import { LuFilter, LuSearch } from 'react-icons/lu'
 import { Button } from '@/elements/button'
 import { IconButton } from '@/elements/icon-button'
@@ -13,6 +14,7 @@ import { Loading } from '@/elements/loading'
 import { toaster } from '@/elements/toaster'
 import TenderCard from './components/TenderCard'
 import { SearchInput } from '@/elements/search-input'
+import { Toggle } from '@/elements/toggle'
 import {
   CARDS_PER_PAGE,
   DEFAULT_FILTERS,
@@ -22,6 +24,14 @@ import {
 } from './variables'
 
 const SEARCH_DEBOUNCE_MS = 300
+
+export const TENDER_TABLE_ORDER = [
+  'closing_date',
+  'client_name',
+  'estimated_value_amount',
+  'nut_label',
+  'is_digital_submission_possible',
+]
 
 export default function TendersPage() {
   const { user } = useGlobal()
@@ -42,6 +52,7 @@ export default function TendersPage() {
   const searchDebounceRef = useRef(null)
   const [favourites, setFavourites] = useState([])
   const [bookmarkLoading, setBookmarkLoading] = useState(false)
+  const [viewMode, setViewMode] = useState('card') // 'card' | 'table'
 
   // Debounce search so fetch runs after user stops typing
   useEffect(() => {
@@ -328,6 +339,28 @@ export default function TendersPage() {
 
   const regionItems = REGION_FILTER_ITEMS
 
+  const tenderTableColumnData = useMemo(() => {
+    if (!tendersByTime.length) return []
+    const customHeaders = {
+      closing_date: 'Deadline',
+      client_name: 'Client',
+      estimated_value_amount: 'Estimated Value',
+      nut_label: 'Province',
+      is_digital_submission_possible: 'Digital submission',
+    }
+    return TENDER_TABLE_ORDER.filter((key) =>
+      tendersByTime.some((obj) => Object.prototype.hasOwnProperty.call(obj, key))
+    ).map((key) => ({
+      accessor: key,
+      header: customHeaders[key] ,
+    }))
+  }, [tendersByTime])
+
+  const tenderTableData = useMemo(
+    () => tendersByTime.map((t) => ({ ...t, id: t.tender_id ?? t.id })),
+    [tendersByTime]
+  )
+
   return (
     <Box
       minH={{ base: '90dvh', lg: '90vh' }}
@@ -366,6 +399,7 @@ export default function TendersPage() {
                 as="button"
                 type="button"
                 key={cat.id}
+                cursor="pointer"
                 display="inline-flex"
                 alignItems="center"
                 gap={2}
@@ -405,8 +439,13 @@ export default function TendersPage() {
 
           <Box flex="1" minW={2} />
 
-          {/* Right: search, region, Filters */}
+          {/* Right: view toggle, search, region, Filters */}
           <HStack gap={2} flexWrap="wrap" alignItems="center">
+            {/* <Toggle
+              label="Table View"
+              checked={viewMode === 'table'}
+              onCheckedChange={({ checked }) => setViewMode(checked ? 'table' : 'card')}
+            /> */}
             <Box width={{ base: '100%', sm: '320px' }}>
               <SearchInput
                 placeholder="Search tenders..."
@@ -422,7 +461,7 @@ export default function TendersPage() {
             <SelectField
               label=""
               size="sm"
-              width="100px"
+              width="160px"
               placeholder="Region"
               items={regionItems}
               value={filters.is_european ? [filters.is_european] : ['any']}
@@ -435,6 +474,7 @@ export default function TendersPage() {
               size="sm"
               variant={filterOpen ? 'solid' : 'outline'}
               colorPalette="primary"
+              cursor="pointer"
               onClick={() => setFilterOpen((o) => !o)}
               leftIcon={<LuFilter size={16} />}
             >
@@ -546,6 +586,15 @@ export default function TendersPage() {
                   </Button>
                 )}
               </Box>
+            ) : viewMode === 'table' ? (
+              <Box bg="var(--color-white)" borderRadius="lg" borderWidth="1px" borderColor="var(--color-gray)" overflow="hidden">
+                <DataTable
+                  data={tenderTableData}
+                  columnsData={tenderTableColumnData}
+                  defaultPageSize={CARDS_PER_PAGE}
+                  showSelectColumn={false}
+                />
+              </Box>
             ) : (
               displayedTenders.map((t, index) => (
                 <TenderCard
@@ -559,7 +608,7 @@ export default function TendersPage() {
               ))
             )}
 
-            {totalPages > 1 && (
+            {viewMode === 'card' && totalPages > 1 && (
               <HStack justify="center" gap={3} mt={4} py={1}>
                 <IconButton
                   aria-label="Previous page"

@@ -152,3 +152,16 @@ export const getDeadlineColor = (closingDate) => {
 }
 
 export const STATUS_BADGE_BG = '#6b7280'
+
+/** Status-specific badge background colors: AAN, VAN, EIN */
+export const STATUS_BADGE_COLORS = {
+  AAN: '#0d9488',
+  VAN: '#ea580c',
+  EIN: '#6b7280',
+}
+
+export function getStatusBadgeBg(tenderStatus) {
+  if (!tenderStatus) return STATUS_BADGE_BG
+  const key = String(tenderStatus).toUpperCase().trim()
+  return STATUS_BADGE_COLORS[key] ?? STATUS_BADGE_BG
+}

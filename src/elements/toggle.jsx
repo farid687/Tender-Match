@@ -20,7 +20,7 @@ export const Toggle = React.forwardRef(function Toggle(props, ref) {
   }
 
   return (
-    <Box>
+    <Box cursor="pointer">
       <Switch.Root
         ref={ref}
         checked={checked}

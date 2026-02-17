@@ -31,7 +31,7 @@ import {
   getDeadlineColor,
   getContractNatureKey,
   CONTRACT_NATURE_ICON_COLOR,
-  STATUS_BADGE_BG,
+  getStatusBadgeBg,
 } from '../variables'
 
 const CONTRACT_NATURE_ICONS = {
@@ -51,7 +51,7 @@ const TenderCard = ({
   const budgetLabel =
     t?.estimated_value_amount != null && t.estimated_value_amount !== ''
       ? formatTenderCurrency(t.estimated_value_amount)
-      : '?'
+      : 'Not Provided'
   const regionLabel = t?.is_european === true ? 'EU' : 'NL'
   const regionTooltip = regionLabel === 'EU' ? 'European procedure' : 'National procedure'
   const closesInText = getClosesInText(t?.closing_date ?? '') ?? 'NVT'
@@ -62,6 +62,7 @@ const TenderCard = ({
 
   const detailHref = t?.tender_id ? `/app/tenders/${t.tender_id}` : null
   const statusLabel = t?.tender_status ? String(t.tender_status).toUpperCase() : '—'
+  const statusBadgeBg = getStatusBadgeBg(t?.tender_status)
   const tendernedUrl = t?.tenderned_url ?? null
 
   const handleSaveClick = (e) => {
@@ -85,22 +86,22 @@ const TenderCard = ({
         borderColor: 'var(--color-primary)',
       }}
     >
-      {/* Top header: full-height boxes, separators, colored icons */}
+      {/* Top header: reduced height; procedure, status, deadline, budget, region, dates */}
       <HStack
         align="stretch"
-        minH="44px"
+        minH="36px"
+        py={1.5}
         bg="var(--color-very-light-gray)"
         borderBottomWidth="1px"
         borderBottomColor="var(--color-gray)"
         flexWrap="wrap"
       >
-        {/* Full-height procedure box (left rounded only) */}
         {t?.procedure_label && (
           <HStack
             align="center"
-            px={4}
-            py={2}
-            gap={2}
+            px={3}
+            py={1.5}
+            gap={1.5}
             fontWeight="700"
             fontSize="xs"
             textTransform="uppercase"
@@ -111,95 +112,84 @@ const TenderCard = ({
             borderRadius="8px 30px 30px 0px"
             flexShrink={0}
           >
-            <LuTarget size={14} />
+            <LuTarget size={12} />
             <Text as="span">{t.procedure_label}</Text>
           </HStack>
         )}
         <Badge
           alignSelf="center"
-          gap={1.5}
-          px={3}
-          py={2}
-          ml={4}
+          gap={1}
+          px={2.5}
+          py={1.5}
+          ml={3}
           fontWeight="700"
           fontSize="xs"
           textTransform="uppercase"
           letterSpacing="wider"
           color="white"
-          bg={STATUS_BADGE_BG}
+          bg={statusBadgeBg}
           border="none"
           borderRadius="full"
           flexShrink={0}
         >
-          <LuTarget size={14} />
+          <LuTarget size={12} />
           <Text as="span">{statusLabel}</Text>
         </Badge>
 
-        <HStack gap={2} px={4} py={2} flexShrink={0} color={deadlineColor}>
-          <LuClock size={16} style={{ color: deadlineColor }} />
-          <Text fontSize="sm" fontWeight="600" color={deadlineColor}>
+        <HStack gap={1.5} px={3} py={1.5} flexShrink={0} color={deadlineColor}>
+          <LuClock size={14} style={{ color: deadlineColor }} />
+          <Text fontSize="xs" fontWeight="600" color={deadlineColor}>
             {closesInText}
           </Text>
         </HStack>
 
-        <HStack gap={2} px={4} py={2} flexShrink={0} color={'#ea580c'}>
-          <FaSackDollar size={16} style={{ flexShrink: 0 }} />
-          <Text fontSize="sm" fontWeight="600" color={'#ea580c'}>{budgetLabel}</Text>
+        <HStack gap={1.5} px={3} py={1.5} flexShrink={0} color="#ea580c">
+          <FaSackDollar size={14} style={{ flexShrink: 0 }} />
+          <Text fontSize="xs" fontWeight="600" color="#ea580c">{budgetLabel}</Text>
         </HStack>
 
         <Tooltip content={regionTooltip}>
-          <HStack gap={1} px={4} py={2} flexShrink={0} as="span" display="inline-flex" cursor="help">
-            <Text as="span" fontSize="lg" lineHeight={1} role="img" aria-label={regionLabel === 'EU' ? 'European Union flag' : 'Netherlands flag'}>
+          <HStack gap={1} px={3} py={1.5} flexShrink={0} as="span" display="inline-flex" cursor="help">
+            <Text as="span" fontSize="md" lineHeight={1} role="img" aria-label={regionLabel === 'EU' ? 'European Union flag' : 'Netherlands flag'}>
               {regionLabel === 'EU' ? '🇪🇺' : '🇳🇱'}
             </Text>
-            <Text fontSize="sm" fontWeight="700" color="var(--color-black)">{regionLabel}</Text>
+            <Text fontSize="xs" fontWeight="700" color="var(--color-black)">{regionLabel}</Text>
           </HStack>
         </Tooltip>
 
         <Box flex="1" minW={2} />
 
-        <HStack gap={0} px={2} py={2} color="var(--color-dark-gray)">
-          <IconButton aria-label="Partners" size="sm" variant="ghost" colorPalette="gray">
-            <LuHandshake size={18} />
-          </IconButton>
+        {/* Publication + Deadline in header */}
+        <HStack gap={3} px={3} py={1.5} flexShrink={0} fontSize="xs">
+          {t?.publication_datetime && (
+            <HStack gap={1}>
+              <LuCalendar size={12} style={{ color: 'var(--color-primary)' }} />
+              <Text fontWeight="600" color="var(--color-dark-gray)">Pub:</Text>
+              <Text fontWeight="700" color="var(--color-black)">{formatTenderDate(t.publication_datetime)}</Text>
+            </HStack>
+          )}
+          {t?.closing_date && (
+            <HStack gap={1}>
+              <LuClock size={12} style={{ color: 'var(--color-primary)' }} />
+              <Text fontWeight="600" color="var(--color-dark-gray)">Due:</Text>
+              <Text fontWeight="700" color="var(--color-black)">{formatTenderDate(t.closing_date)}</Text>
+            </HStack>
+          )}
         </HStack>
       </HStack>
 
       <HStack align="stretch" gap={0} flexWrap={{ base: 'wrap', lg: 'nowrap' }}>
         {/* Left: title, tags, actions */}
         <VStack align="stretch" flex="1" minW={0} p={4} gap={3}>
-          <Text fontWeight="800" fontSize="lg" color="var(--color-black)" lineHeight="1.3" noOfLines={2}>
+          <Text fontWeight="800" fontSize="lg" color="var(--color-black)" lineHeight="1.3" lineClamp={2}>
             {t?.title || '—'}
           </Text>
 
-          <HStack gap={5} flexWrap="wrap" alignItems="center">
-            {t?.publication_datetime && (
-              <HStack gap={2} alignItems="center">
-                <Box as="span" display="flex" alignItems="center" justifyContent="center" flexShrink={0}>
-                  <LuCalendar size={15} style={{ color: 'var(--color-primary)' }} />
-                </Box>
-                <VStack align="flex-start" gap={0}>
-                  <Text fontSize="2xs" fontWeight="600" color="var(--color-dark-gray)" textTransform="uppercase" letterSpacing="wider">
-                    Published
-                  </Text>
-                  <Text fontSize="sm" fontWeight="700" color="var(--color-black)">{formatTenderDate(t.publication_datetime)}</Text>
-                </VStack>
-              </HStack>
-            )}
-            {t?.closing_date && (
-              <HStack gap={2} alignItems="center">
-                <Box as="span" display="flex" alignItems="center" justifyContent="center" flexShrink={0}>
-                  <LuClock size={15} style={{ color: 'var(--color-primary)' }} />
-                </Box>
-                <VStack align="flex-start" gap={0}>
-                  <Text fontSize="2xs" fontWeight="600" color="var(--color-dark-gray)" textTransform="uppercase" letterSpacing="wider">
-                    Deadline
-                  </Text>
-                  <Text fontSize="sm" fontWeight="700" color="var(--color-black)">{formatTenderDate(t.closing_date)}</Text>
-                </VStack>
-              </HStack>
-            )}
-          </HStack>
+          {t?.description != null && String(t.description).trim() !== '' && (
+            <Text maxW="75%" fontSize="sm" color="var(--color-dark-gray)" lineHeight="1.5" lineClamp={2}>
+              {t.description.trim()}
+            </Text>
+          )}
 
           {/* Detail row: type, issuer, location, platform, CPV — with separators and colored icons */}
           <HStack gap={0} flexWrap="wrap" fontSize="sm" alignItems="center" rowGap={2}>
@@ -257,6 +247,7 @@ const TenderCard = ({
               size="sm"
               variant="outline"
               borderRadius="lg"
+              cursor="pointer"
               onClick={handleSaveClick}
               fontWeight="500"
               borderColor={isBookmarked ? 'var(--color-primary)' : 'var(--color-gray)'}
@@ -275,9 +266,29 @@ const TenderCard = ({
                 <Button
                   as="span"
                   size="sm"
+                  variant="outline"
+                  borderRadius="lg"
+                  cursor="pointer"
+                  fontWeight="500"
+                  borderColor="var(--color-gray)"
+                  _hover={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                >
+                  <HStack gap={2} as="span" display="inline-flex">
+                    <LuHandshake size={16} />
+                    <Text as="span">Find Match</Text>
+                  </HStack>
+                </Button>
+              </Link>
+            )}
+            {detailHref && (
+              <Link href={detailHref}>
+                <Button
+                  as="span"
+                  size="sm"
                   variant="solid"
                   colorScheme="primary"
                   borderRadius="lg"
+                  cursor="pointer"
                   fontWeight="600"
                   display="inline-flex"
                 >
@@ -296,12 +307,14 @@ const TenderCard = ({
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 _hover={{ textDecoration: 'none' }}
+                cursor="pointer"
               >
                 <Button
                   as="span"
                   size="sm"
                   variant="outline"
                   borderRadius="lg"
+                  cursor="pointer"
                   fontWeight="500"
                   borderColor="var(--color-gray)"
                   _hover={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
