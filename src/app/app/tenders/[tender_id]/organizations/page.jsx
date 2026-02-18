@@ -242,13 +242,13 @@ export default function TenderOrganizationsPage() {
 
   return (
     <Box
+      
       bg="var(--color-white)"
       borderRadius="xl"
       borderWidth="1px"
       borderColor="var(--color-gray)"
       boxShadow="0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(var(--color-primary-rgb), 0.06)"
     >
-   
       <HStack
         px={5}
         py={4}

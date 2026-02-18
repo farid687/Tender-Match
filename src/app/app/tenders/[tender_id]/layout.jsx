@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Box, Text, HStack } from '@chakra-ui/react'
-import { LuInfo, LuCircleAlert } from 'react-icons/lu'
+import { Box, Text, HStack, VStack } from '@chakra-ui/react'
+import { LuInfo, LuCircleAlert, LuArrowLeft } from 'react-icons/lu'
 import { Loading } from '@/elements/loading'
 
 import TenderDetailHeader from '../components/TenderDetailHeader'
@@ -13,11 +14,11 @@ import { TenderDetailProvider } from './context/TenderDetailContext'
 
 export default function TenderDetailLayout({ children }) {
   const params = useParams()
-  const router = useRouter()
   const tenderId = params?.tender_id ?? null
   const [tender, setTender] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [headerHeight, setHeaderHeight] = useState(340)
 
   const fetchTender = useCallback(async () => {
     if (!tenderId || !supabase) return
@@ -52,12 +53,6 @@ export default function TenderDetailLayout({ children }) {
     fetchTender()
   }, [fetchTender])
 
-  useEffect(() => {
-    if (!loading && tenderId && (error || !tender)) {
-      router.replace('/app/tenders')
-    }
-  }, [loading, tenderId, error, tender, router])
-
   const contextValue = {
     tenderId,
     tender,
@@ -68,19 +63,54 @@ export default function TenderDetailLayout({ children }) {
   return (
     <TenderDetailProvider value={contextValue}>
       <Box
-        minH={{ base: '90dvh', lg: '90vh' }}
-        h={{ base: '90dvh', lg: '90vh' }}
+        minH="100dvh"
         display="flex"
         flexDirection="column"
         bg="var(--color-off-white)"
-        overflow="hidden"
       >
-        <Box w="full" mx="auto" flex={1} minH={0} display="flex" flexDirection="column">
+        <Box w="full" mx="auto" minH="100dvh" display="flex" flexDirection="column">
           {loading && <Loading message="Loading tender..." />}
+{!loading && (error || !tender) && (
+            <Box p={6} display="flex" alignItems="center" justifyContent="center" minH="100dvh">
+              <VStack gap={6} align="center">
+                <Box
+                  as={Link}
+                  href="/app/tenders"
+                  alignSelf="flex-start"
+                  display="inline-flex"
+                  alignItems="center"
+                  gap={2}
+                  fontSize="sm"
+                  fontWeight="600"
+                  color="var(--color-primary)"
+                  textUnderlineOffset={2}
+                  transition="color 0.2s"
+                  _hover={{ color: 'var(--color-secondary)' }}
+                  role="group"
+                >
+                  <Box
+                    as={LuArrowLeft}
+                    size={18}
+                    transition="transform 0.2s"
+                    _groupHover={{ transform: 'translateX(-2px)' }}
+                  />
+                  Back to overview
+                </Box>
+                <Text fontSize="lg" color="var(--color-dark-gray)" fontWeight="600" textAlign="center">
+                  The tender detail for this tender is not available. Please try again later.
+                </Text>
+              </VStack>
+            </Box>
+          )}
           {!loading && !error && tender && (
-            <>
-              <TenderDetailHeader tender={tender} flexShrink={0} />
-              <Box p={{ base: 2, md: 4 }} flex={1} minH={0} display="flex" flexDirection="column">
+            <Box
+              pt={`${headerHeight}px`}
+              px={{ base: 2, md: 4 }}
+              pb={{ base: 2, md: 4 }}
+              minH="100dvh"
+              display="block"
+            >
+              <TenderDetailHeader tender={tender} onHeightChange={setHeaderHeight} />
                 {tender?.is_imported && (
                   <Box
                     mb={3}
@@ -113,7 +143,7 @@ export default function TenderDetailLayout({ children }) {
                     </HStack>
                   </Box>
                 )}
-                {!tender?.is_terminated_early && (
+                {tender?.is_terminated_early && (
                   <Box
                     mb={4}
                     px={6}
@@ -140,11 +170,17 @@ export default function TenderDetailLayout({ children }) {
                   </Box>
                 )}
                 {tenderId && <TenderTabNav tenderId={tenderId} />}
-                <Box as="main" pt={0} flex={1} minH={0} overflowY="auto" overflowX="hidden" display="flex" flexDirection="column">
+                <Box
+                  as="main"
+                  pt={0}
+                  overflowX="hidden"
+                  display="block"
+                 
+                >
                   {children}
                 </Box>
               </Box>
-            </>
+            
           )}
         </Box>
       </Box>

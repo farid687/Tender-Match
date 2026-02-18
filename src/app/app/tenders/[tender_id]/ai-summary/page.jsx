@@ -25,8 +25,7 @@ export default function TenderAISummaryPage() {
 
   return (
     <Box
-      flex={1}
-      minH={0}
+    
       py={5}
       display="flex"
       flexDirection="column"
@@ -35,17 +34,10 @@ export default function TenderAISummaryPage() {
       borderWidth="1px"
       borderColor="rgba(31, 106, 225, 0.12)"
       boxShadow="0 4px 24px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.02)"
-      overflow="hidden"
       position="relative"
-     
     >
       <Box
-        flex={1}
-        minH={0}
-        
         px={8}
-        overflowY="auto"
-        overflowX="hidden"
         className="ai-summary-prose"
         dangerouslySetInnerHTML={{ __html: tender.ai_summary }}
       />

@@ -10,7 +10,8 @@ import {
   CollapsibleContent,
   CollapsibleIndicator,
 } from '@chakra-ui/react'
-import { LuFileText, LuChevronDown, LuExternalLink, LuDownload } from 'react-icons/lu'
+import { LuFileText, LuChevronDown, LuDownload } from 'react-icons/lu'
+import { FaFilePdf, FaFileWord, FaFileExcel, FaFileZipper } from 'react-icons/fa6'
 import { Button } from '@/elements/button'
 import { Loading } from '@/elements/loading'
 import moment from 'moment'
@@ -48,12 +49,29 @@ function formatFileSize(value) {
   return `${num} B`
 }
 
+const DOC_TYPE_ICON = {
+  pdf: { Icon: FaFilePdf, color: '#dc2626' },
+  docx: { Icon: FaFileWord, color: '#2563eb' },
+  doc: { Icon: FaFileWord, color: '#2563eb' },
+  xlsx: { Icon: FaFileExcel, color: '#16a34a' },
+  xls: { Icon: FaFileExcel, color: '#16a34a' },
+  zip: { Icon: FaFileZipper, color: '#ca8a04' },
+}
+
+function getDocumentIcon(doc) {
+  const code = (doc.document_type_code ?? doc.document_type_description ?? '').toString().toLowerCase().trim()
+  const match = DOC_TYPE_ICON[code]
+  if (match) return match
+  return { Icon: LuFileText, color: 'var(--color-primary)' }
+}
+
 function DocumentRow({ doc }) {
   const name = doc.document_name ?? doc.download_title ?? '—'
   const url = fullUrl(doc.download_href)
   const published = formatDocumentDate(doc.publication_date)
   const fileType = doc.document_type_description ?? doc.document_type_code ?? '—'
   const size = formatFileSize(doc.file_size)
+  const { Icon, color } = getDocumentIcon(doc)
 
   return (
     <Box
@@ -67,29 +85,35 @@ function DocumentRow({ doc }) {
       mx={-3}
       borderRadius="md"
     >
-      <HStack align="flex-start" gap={2}>
-        <Box flexShrink={0} color="var(--color-primary)" mt={0.5}>
-          <LuFileText size={18} />
+      <HStack align="flex-start" gap={3}>
+        <Box flexShrink={0} mt={0.5} color={color}>
+          <Icon size={18} />
         </Box>
         <VStack align="stretch" gap={0.5} flex={1} minW={0}>
-          <Text
-            as={url ? 'a' : 'span'}
-            href={url || undefined}
-            target={url ? '_blank' : undefined}
-            rel={url ? 'noopener noreferrer' : undefined}
-            fontSize="sm"
-            fontWeight="600"
-            color={url ? 'var(--color-primary)' : 'var(--color-black)'}
-            _hover={url ? { textDecoration: 'underline' } : undefined}
-            lineHeight="1.4"
-          >
+          <Text fontSize="sm" fontWeight="600" color="var(--color-primary)" lineHeight="1.4">
             {name}
-            {url && <LuExternalLink size={14} style={{ display: 'inline', marginLeft: 4, verticalAlign: 'middle' }} />}
           </Text>
           <Text fontSize="xs" color="var(--color-dark-gray)">
             Published on {published} · {fileType} · {size}
           </Text>
         </VStack>
+        {url && (
+          <Box
+            as="a"
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            flexShrink={0}
+            p={2}
+            borderRadius="md"
+            color="var(--color-primary)"
+            _hover={{ bg: 'rgba(var(--color-primary-rgb), 0.1)' }}
+            transition="background 0.15s"
+            aria-label="Download"
+          >
+            <LuDownload size={20} />
+          </Box>
+        )}
       </HStack>
     </Box>
   )
@@ -208,7 +232,6 @@ export default function TenderDocumentsPage() {
       borderColor="var(--color-gray)"
       boxShadow="0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(var(--color-primary-rgb), 0.06)"
     >
-      
       <HStack
         px={5}
         py={4}
@@ -254,6 +277,7 @@ export default function TenderDocumentsPage() {
             bg="linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)"
             color="var(--color-white)"
             border="none"
+           
           >
             <LuDownload size={18} /> Download all documents
           </Button>

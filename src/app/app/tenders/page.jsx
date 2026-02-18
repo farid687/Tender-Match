@@ -118,14 +118,6 @@ export default function TendersPage() {
     }
   }, [userId, favourites, supabase])
 
-  const cpvByCode = useMemo(() => {
-    const map = {}
-    ;(cpvsList || []).forEach((c) => {
-      if (c.cpv_code != null) map[String(c.cpv_code).trim()] = { main_cpv_description: c.main_cpv_description ?? '' }
-    })
-    return map
-  }, [cpvsList])
-
   const platformOptions = useMemo(() => {
     const platforms = [...new Set(tenders.map((t) => t.platform).filter(Boolean))]
     return platforms.map((id) => ({ id, name: id }))
@@ -141,30 +133,38 @@ export default function TendersPage() {
     return natures.map((id) => ({ id, name: id.charAt(0).toUpperCase() + id.slice(1) }))
   }, [tenders])
 
-  const fetchCpvs = useCallback(async () => {
-    if (!supabase) return
+  const fetchCpvs = async () => {
     try {
-      const { data, error } = await supabase
-        .from('cpvs')
-        .select('cpv_code, main_cpv_description')
-        .order('cpv_code', { ascending: true })
-      if (error) {
-        console.error('CPVs fetch error:', error)
-        setCpvsList([])
-        return
+      const PAGE_SIZE = 1000
+      let all = []
+      let offset = 0
+      let hasMore = true
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('cpvs')
+          .select('*')
+          .range(offset, offset + PAGE_SIZE - 1)
+          .order('cpv_code', { ascending: true })
+
+        if (error) {
+          console.error('CPVs fetch error:', error)
+          setCpvsList([])
+          return
+        }
+        const chunk = data ?? []
+        all = all.concat(chunk)
+        hasMore = chunk.length === PAGE_SIZE
+        offset += PAGE_SIZE
       }
-      setCpvsList(data ?? [])
-    } catch {
+      setCpvsList(all)
+    } catch (err) {
+      console.error('CPVs fetch exception:', err)
       setCpvsList([])
     }
-  }, [supabase])
+  }
 
-  const fetchTenders = useCallback(async () => {
-    if (!supabase) {
-      setLoading(false)
-      setFetchError('Unable to connect.')
-      return
-    }
+  const fetchTenders = async () => {
+   
     setLoading(true)
     setFetchError(null)
     try {
@@ -253,7 +253,7 @@ export default function TendersPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters, sortBy, sortOrder, searchQuery, supabase])
+  }
 
   // Time buckets and filtering by closing_date — frontend only
   const timeCounts = useMemo(() => {
@@ -287,12 +287,15 @@ export default function TendersPage() {
   }, [userId, fetchBookmarks])
 
   useEffect(() => {
+    if (!supabase) return
     fetchCpvs()
-  }, [fetchCpvs])
+  }, [supabase ])
 
   useEffect(() => {
+    if (!supabase) return
     fetchTenders()
-  }, [fetchTenders])
+  }, [filters, sortBy, sortOrder, searchQuery, supabase])
+
 
   const updateFilter = useCallback((key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
@@ -312,16 +315,7 @@ export default function TendersPage() {
   )
   const hasFilters = activeFilterCount > 0
 
-  const getCpvInfo = useCallback((code) => cpvByCode[String(code).trim()] ?? null, [cpvByCode])
-
-  const cpvMainDisplay = useCallback((row) => {
-    const main = row?.cpv_main
-    if (main == null || main === '') return '—'
-    const info = getCpvInfo(main)
-    if (!info?.main_cpv_description) return main
-    return `${main} – ${info.main_cpv_description}`
-  }, [getCpvInfo])
-
+  /** For tender card: if cpvMap[tender.cpv_main] exists, show "cpv_main - description". */
   const platformItems = useMemo(
     () => [{ id: '', name: 'All' }, ...platformOptions],
     [platformOptions]
@@ -359,6 +353,29 @@ export default function TendersPage() {
   const tenderTableData = useMemo(
     () => tendersByTime.map((t) => ({ ...t, id: t.tender_id ?? t.id })),
     [tendersByTime]
+  )
+
+  
+  const cpvMapByCode = useMemo(() => {
+    const list = cpvsList ?? []
+    const map = {}
+    list.forEach((cpv) => {
+      if (cpv?.cpv_code != null) {
+        map[String(cpv.cpv_code)] = cpv.main_cpv_description ?? ''
+      }
+    })
+    return map
+  }, [cpvsList])
+
+  const cpvMainDisplay = useCallback(
+    (tender) => {
+      const code = tender?.cpv_main
+      if (code == null || code === '') return '—'
+      const desc = cpvMapByCode[String(code)]
+      if (desc != null && desc !== '') return `${code} - ${desc}`
+      return String(code)
+    },
+    [cpvMapByCode]
   )
 
   return (
@@ -600,7 +617,7 @@ export default function TendersPage() {
                 <TenderCard
                   key={`tender-${t.tender_id ?? index}`}
                   t={t}
-                  cpvMainDisplay={cpvMainDisplay}
+                  cpvDisplay={cpvMainDisplay(t)}
                   isBookmarked={t?.tender_id ? favouritesSet.has(t.tender_id) : false}
                   onSaveClick={t?.tender_id ? () => handleToggleBookmark(t.tender_id) : undefined}
                   saveDisabled={bookmarkLoading}

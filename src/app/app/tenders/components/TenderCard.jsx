@@ -42,12 +42,12 @@ const CONTRACT_NATURE_ICONS = {
 
 const TenderCard = ({
   t,
-  cpvMainDisplay,
+  cpvDisplay: cpvDisplayProp = null,
   isBookmarked = false,
   onSaveClick,
   saveDisabled = false,
 }) => {
-  const cpvDisplay = cpvMainDisplay ? cpvMainDisplay(t) : '—'
+  const cpvDisplay = cpvDisplayProp ?? t?.cpv_main ?? '—'
   const budgetLabel =
     t?.estimated_value_amount != null && t.estimated_value_amount !== ''
       ? formatTenderCurrency(t.estimated_value_amount)
@@ -64,6 +64,8 @@ const TenderCard = ({
   const statusLabel = t?.tender_status ? String(t.tender_status).toUpperCase() : '—'
   const statusBadgeBg = getStatusBadgeBg(t?.tender_status)
   const tendernedUrl = t?.tenderned_url ?? null
+
+ 
 
   const handleSaveClick = (e) => {
     e?.stopPropagation()
@@ -215,21 +217,11 @@ const TenderCard = ({
                 <Text fontWeight="500" color="var(--color-black)" noOfLines={1}>{t.platform}</Text>
               </HStack>
             )}
-            {cpvDisplay !== '—' && (
-              <Box
-                pl={4}
-                display="inline-flex"
-                alignItems="center"
-                gap={1.5}
-                px={3}
-                py={1.5}
-                borderRadius="md"
-                bg="var(--color-very-light-gray)"
-                boxShadow="0 1px 2px rgba(0,0,0,0.06)"
-              >
-                <LuFileText size={16} style={{ flexShrink: 0, color: 'var(--color-dark-gray)' }} />
-                <Text fontWeight="600" color="var(--color-black)" noOfLines={1} title={cpvDisplay}>CPV: {cpvDisplay}</Text>
-              </Box>
+            {cpvDisplay && cpvDisplay !== '—' && (
+              <HStack gap={1.5} px={4} borderRightWidth="1px" borderRightColor="var(--color-gray)" borderRightStyle="solid">
+                <LuBriefcase size={16} style={{ flexShrink: 0, color: 'var(--color-dark-gray)' }} />
+                <Text fontWeight="500" color="var(--color-black)" noOfLines={1} title={cpvDisplay}>CPV: {cpvDisplay}</Text>
+              </HStack>
             )}
           </HStack>
 

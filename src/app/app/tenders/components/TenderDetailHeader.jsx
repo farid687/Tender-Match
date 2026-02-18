@@ -1,34 +1,58 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Box, Text, VStack, HStack } from '@chakra-ui/react'
-import { LuArrowLeft, LuBell, LuUserRound, LuCalendar, LuCircleAlert } from 'react-icons/lu'
+import { LuArrowLeft, LuBell, LuUserRound, LuCalendar, LuCircleAlert, LuMonitor, LuMonitorOff } from 'react-icons/lu'
 import { FaLinkedin } from 'react-icons/fa'
 import { Button } from '@/elements/button'
+import { Badge } from '@/elements/badge'
 import { formatTenderDateLong, getRegistrationDaysText } from '../variables'
+import { useGlobal } from '@/context'
+import { SIDENAV_WIDTH_COLLAPSED, SIDENAV_WIDTH_EXPANDED } from '@/elements/sidenav'
 
-function TenderDetailHeader({ tender }) {
+function TenderDetailHeader({ tender, onHeightChange }) {
+  const headerRef = useRef(null)
+  const { sidenavCollapsed } = useGlobal()
   const dateLong = formatTenderDateLong(tender?.processing_time ?? tender?.publication_datetime)
   const publicationLabel = tender?.publication_type_label ?? ''
   const topLine = [dateLong, publicationLabel].filter(Boolean).join(' — ')
   const registrationText = getRegistrationDaysText(tender?.closing_date)
+
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el || typeof onHeightChange !== 'function') return
+    const observer = new ResizeObserver((entries) => {
+      const height = entries[0]?.contentRect?.height
+      if (typeof height === 'number') onHeightChange(height)
+    })
+    observer.observe(el)
+    onHeightChange(el.getBoundingClientRect().height)
+    return () => observer.disconnect()
+  }, [onHeightChange])
 
   const openUrl = (path) => {
     const url = path?.startsWith('http') ? path : path ? `${process.env.NEXT_PUBLIC_BASE_URL || ''}${path.startsWith('/') ? '' : '/'}${path}` : ''
     if (url) window.open(url, '_blank', 'noopener,noreferrer')
   }
 
+  const sidebarOffset = sidenavCollapsed ? SIDENAV_WIDTH_COLLAPSED : SIDENAV_WIDTH_EXPANDED
+
   return (
     <Box
-      mb={4}
-      overflow="hidden"
+      ref={headerRef}
+      position="fixed"
+      top={{ base: '56px', md: '56px' }}
+      left={{ base: 0, lg: `${sidebarOffset}px` }}
+      right={0}
+      zIndex={10}
+      flexShrink={0}
       bg="var(--color-white)"
-     
       borderWidth="1px"
       borderColor="var(--color-gray)"
       boxShadow="0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(var(--color-primary-rgb), 0.06)"
-      transition="box-shadow 0.2s ease"
-      _hover={{ boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(var(--color-primary-rgb), 0.08)' }}
+      transition="box-shadow 0.2s ease, left 0.18s ease"
+      
     >
       {/* Gradient accent bar */}
       {/* <Box
@@ -38,7 +62,7 @@ function TenderDetailHeader({ tender }) {
         boxShadow="0 2px 8px rgba(var(--color-primary-rgb), 0.2)"
       /> */}
 
-      <Box px={{ base: 4, md: 6 }} py={{ base: 4, md: 11 }}>
+      <Box px={{ base: 4, md: 6 }} py={{ base: 4, md: 14 }}>
         <VStack align="stretch" gap={5}>
           {/* Back to overview */}
           <Box
@@ -50,7 +74,6 @@ function TenderDetailHeader({ tender }) {
             fontSize="sm"
             fontWeight="600"
             color="var(--color-primary)"
-           
             textUnderlineOffset={2}
             transition="color 0.2s"
             _hover={{ color: 'var(--color-secondary)' }}
@@ -121,6 +144,49 @@ function TenderDetailHeader({ tender }) {
                   </VStack>
                 </HStack>
               )}
+              {/* Digital submission badge — below client */}
+              {tender?.is_digital_submission_possible === true && (
+                <Badge
+                  mt={2}
+                  variant="solid"
+                  w="fit-content"
+                  colorPalette="green"
+                  size="sm"
+                  display="inline-flex"
+                  alignItems="center"
+                  gap={1.5}
+                  px={3}
+                  rounded="full"
+                  py={1.5}
+                  textTransform="none"
+                >
+                  <HStack as="span" gap={1.5} display="inline-flex" alignItems="center">
+                    <LuMonitor size={15} style={{ flexShrink: 0 }} />
+                    <span>Digital submission possible</span>
+                  </HStack>
+                </Badge>
+              )}
+              {tender?.is_digital_submission_possible === false && (
+                <Badge
+                mt={2}
+                variant="solid"
+                w="fit-content"
+                colorPalette="gray"
+                size="sm"
+                display="inline-flex"
+                alignItems="center"
+                gap={1.5}
+                px={3}
+                rounded="full"
+                py={1.5}
+                textTransform="none"
+                >
+                  <HStack as="span" gap={1.5} display="inline-flex" alignItems="center">
+                    <LuMonitorOff size={14} style={{ flexShrink: 0 }} />
+                    <span>Digital submission not possible</span>
+                  </HStack>
+                </Badge>
+              )}
               {registrationText && (
                 <Box mt={2}>
                   <Text fontSize="sm" color="var(--color-dark-gray)" lineHeight="1.5">
@@ -136,7 +202,7 @@ function TenderDetailHeader({ tender }) {
                   </Text>
                 </Box>
               )}
-               {!tender?.is_terminated_early && (
+               {tender?.is_terminated_early && (
             <Box
               mt={2}
             >
@@ -168,7 +234,7 @@ function TenderDetailHeader({ tender }) {
                     boxShadow: '0 4px 12px rgba(var(--color-primary-rgb), 0.35)',
                   }}
                 >
-                  <LuCalendar size={18} /> Digital registration
+                  <LuCalendar size={18} /> Add to Tenders
                 </Button>
               )}
               {tender?.keep_informed_url && (

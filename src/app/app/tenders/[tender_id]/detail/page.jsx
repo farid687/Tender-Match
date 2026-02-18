@@ -149,7 +149,6 @@ export default function TenderDetail() {
       borderRadius="xl"
       borderWidth="1px"
       borderColor="var(--color-gray)"
-     
       boxShadow="0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(var(--color-primary-rgb), 0.06)"
       transition="box-shadow 0.2s ease"
       _hover={{ boxShadow: '0 4px 16px rgba(0,0,0,0.08), 0 2px 8px rgba(var(--color-primary-rgb), 0.1)' }}
