@@ -164,8 +164,7 @@ export default function TenderDetail() {
               py={3}
               bg="var(--color-very-light-gray)"
               borderRadius="lg"
-              borderLeftWidth="4px"
-              borderLeftColor="var(--color-primary)"
+             
             >
               <Text
                 fontSize="sm"

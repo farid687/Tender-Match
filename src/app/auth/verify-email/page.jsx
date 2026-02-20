@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toaster } from "@/elements/toaster";
+import { Loading } from "@/elements/loading";
 import { LuMail, LuCheckCircle } from "react-icons/lu";
 import { validateEmail } from "@/utils/validation";
 
@@ -211,7 +212,7 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={<Box minH="100vh" display="flex" alignItems="center" justifyContent="center">Loading...</Box>}>
+    <Suspense fallback={<Loading fullScreen message="Loading..." />}>
       <VerifyEmailContent />
     </Suspense>
   );

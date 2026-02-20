@@ -1,8 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
-import { useCompany } from '@/hooks/useCompany'
+import { useState, useMemo, useCallback } from 'react'
 import { Box } from '@chakra-ui/react'
 import { Loading } from '@/elements/loading'
 import { useGlobal } from '@/context'
@@ -11,38 +9,13 @@ import ProfileTabs from './components/ProfileTabs'
 import { computeProgress } from './variables'
 
 export default function ProfilePage() {
-  const { user, company, loading: authLoading } = useGlobal()
-  const { getCompany, loading: companyLoading } = useCompany()
-  const [regions, setRegions] = useState([])
-  const [cpvs, setCpvs] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { user, company, loading: authLoading, regions, cpvs: cpvsRaw } = useGlobal()
   const [draft, setDraft] = useState({})
 
-  useEffect(() => {
-    if (!supabase) return
-    let cancelled = false
-    const loadInitialData = async () => {
-      setIsLoading(true)
-      try {
-        const [regionsRes, cpvsRes] = await Promise.all([
-          supabase.from('regions').select('id, name').order('name', { ascending: true }),
-          supabase.from('cpvs').select('id, cpv_code, main_cpv_description').order('cpv_code', { ascending: true }),
-        ])
-        if (cancelled) return
-        setRegions((regionsRes.data || []).map((r) => ({ id: r.id, name: r.name })))
-        setCpvs((cpvsRes.data || []).map(cpv => ({ id: cpv.id, name: `${cpv.cpv_code} - ${cpv.main_cpv_description || ''}` })))
-      } finally {
-        if (!cancelled) setIsLoading(false)
-      }
-    }
-    loadInitialData()
-    return () => { cancelled = true }
-  }, [supabase])
-
-  useEffect(() => {
-    if (!supabase || !user?.company_id) return
-    getCompany(user.company_id)
-  }, [user?.company_id, getCompany])
+  const cpvs = useMemo(
+    () => (cpvsRaw || []).map((c) => ({ id: c.id, name: `${c.cpv_code || ''} - ${c.main_cpv_description || ''}`.trim() })),
+    [cpvsRaw]
+  )
 
   const onDraftChange = useCallback((partial) => {
     setDraft(prev => ({ ...prev, ...partial }))
@@ -53,7 +26,7 @@ export default function ProfilePage() {
     return computeProgress(data)
   }, [company, draft])
 
-  if (authLoading || isLoading || companyLoading) {
+  if (authLoading) {
     return <Loading fullScreen message="Loading profile data..." />
   }
 

@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useGlobal } from '@/context'
-import { Box, Text, VStack, HStack, SimpleGrid, Badge } from '@chakra-ui/react'
+import { computeMatchMapForCompany } from '@/lib/tender-match-score'
+import { Box, Text, VStack, HStack, SimpleGrid, Badge, Dialog, ProgressCircle, AbsoluteCenter } from '@chakra-ui/react'
 import { DataTable } from '@/elements/data-table'
 import { LuFilter, LuSearch } from 'react-icons/lu'
 import { Button } from '@/elements/button'
@@ -34,7 +35,7 @@ export const TENDER_TABLE_ORDER = [
 ]
 
 export default function TendersPage() {
-  const { user } = useGlobal()
+  const { user, company, regions, cpvs: cpvsList, companyCertifications } = useGlobal()
   const userId = user?.sub ?? null
 
   const [tenders, setTenders] = useState([])
@@ -45,7 +46,6 @@ export default function TendersPage() {
   const [sortOrder, setSortOrder] = useState('desc')
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(null)
-  const [cpvsList, setCpvsList] = useState([])
   const [timeCategory, setTimeCategory] = useState('all')
   const [searchTitle, setSearchTitle] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -53,6 +53,7 @@ export default function TendersPage() {
   const [favourites, setFavourites] = useState([])
   const [bookmarkLoading, setBookmarkLoading] = useState(false)
   const [viewMode, setViewMode] = useState('card') // 'card' | 'table'
+  const [matchBreakdownModal, setMatchBreakdownModal] = useState({ open: false, data: null })
 
   // Debounce search so fetch runs after user stops typing
   useEffect(() => {
@@ -133,36 +134,6 @@ export default function TendersPage() {
     return natures.map((id) => ({ id, name: id.charAt(0).toUpperCase() + id.slice(1) }))
   }, [tenders])
 
-  const fetchCpvs = async () => {
-    try {
-      const PAGE_SIZE = 1000
-      let all = []
-      let offset = 0
-      let hasMore = true
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('cpvs')
-          .select('*')
-          .range(offset, offset + PAGE_SIZE - 1)
-          .order('cpv_code', { ascending: true })
-
-        if (error) {
-          console.error('CPVs fetch error:', error)
-          setCpvsList([])
-          return
-        }
-        const chunk = data ?? []
-        all = all.concat(chunk)
-        hasMore = chunk.length === PAGE_SIZE
-        offset += PAGE_SIZE
-      }
-      setCpvsList(all)
-    } catch (err) {
-      console.error('CPVs fetch exception:', err)
-      setCpvsList([])
-    }
-  }
-
   const fetchTenders = async () => {
    
     setLoading(true)
@@ -187,12 +158,14 @@ export default function TendersPage() {
           is_digital_submission_possible,
           estimated_value_amount,
           cpv_main,
+          cpv_codes,
           nut_label,
           publication_datetime,
           closing_date,
           platform,
           client_name,
-          tenderned_url
+          tenderned_url,
+          certification_required
           `,
           { count: 'exact' }
         )
@@ -277,6 +250,7 @@ export default function TendersPage() {
   )
 
   const favouritesSet = useMemo(() => new Set(favourites), [favourites])
+  
 
   useEffect(() => {
     if (!userId) {
@@ -285,11 +259,6 @@ export default function TendersPage() {
     }
     fetchBookmarks()
   }, [userId, fetchBookmarks])
-
-  useEffect(() => {
-    if (!supabase) return
-    fetchCpvs()
-  }, [supabase ])
 
   useEffect(() => {
     if (!supabase) return
@@ -354,7 +323,6 @@ export default function TendersPage() {
     () => tendersByTime.map((t) => ({ ...t, id: t.tender_id ?? t.id })),
     [tendersByTime]
   )
-
   
   const cpvMapByCode = useMemo(() => {
     const list = cpvsList ?? []
@@ -366,6 +334,42 @@ export default function TendersPage() {
     })
     return map
   }, [cpvsList])
+
+  const regionIdToName = useMemo(() => 
+    Object.fromEntries(
+      (regions ?? [])
+        .filter(r => r?.id != null)
+        .map(r => [String(r.id), r.name ?? ''])
+    ), 
+    [regions]
+  );
+
+
+  
+  // --- Map CPV IDs → codes ---
+  const cpvIdToCode = useMemo(() => 
+    Object.fromEntries(
+      (cpvsList ?? [])
+        .filter(cpv => cpv?.id != null && cpv?.cpv_code != null)
+        .map(cpv => [String(cpv.id), String(cpv.cpv_code)])
+    ),
+    [cpvsList]
+  );
+
+  
+  // --- Compute match map (company_certification from context so computeMatchScore can use company.company_certification) ---
+  const matchMapByTenderId = useMemo(() => {
+    if (!company || !tendersByTime?.length) return new Map();
+    const companyWithCerts = {
+      ...company,
+      company_certification: companyCertifications ?? company?.company_certification ?? [],
+    };
+    return computeMatchMapForCompany(companyWithCerts, tendersByTime, {
+      regionIdToName,
+      cpvIdToCode,
+    });
+  }, [company, tendersByTime, regionIdToName, cpvIdToCode, companyCertifications]);
+
 
   const cpvMainDisplay = useCallback(
     (tender) => {
@@ -448,7 +452,7 @@ export default function TendersPage() {
                   color={timeCategory === cat.id ? 'var(--color-dark-gray)' : 'var(--color-dark-gray)'}
                   opacity={0.9}
                 >
-                  {cat.id === 'all' ? totalFiltered : (timeCounts[cat.id] ?? 0)}
+                  {cat.id === 'all' ? tenders.length : (timeCounts[cat.id] ?? 0)}
                 </Text>
               </Box>
             ))}
@@ -621,6 +625,8 @@ export default function TendersPage() {
                   isBookmarked={t?.tender_id ? favouritesSet.has(t.tender_id) : false}
                   onSaveClick={t?.tender_id ? () => handleToggleBookmark(t.tender_id) : undefined}
                   saveDisabled={bookmarkLoading}
+                  matchResult={t?.tender_id ? matchMapByTenderId.get(t.tender_id) : undefined}
+                  onMatchBreakdownClick={(data) => setMatchBreakdownModal({ open: true, data })}
                 />
               ))
             )}
@@ -654,6 +660,99 @@ export default function TendersPage() {
           </VStack>
         )}
       </Box>
+
+      {/* Match score breakdown dialog — commented out for now; tooltip on card shows breakdown
+      <Dialog.Root
+        open={matchBreakdownModal.open}
+        onOpenChange={(e) => setMatchBreakdownModal(e.open ? (prev) => ({ ...prev, open: true }) : { open: false, data: null })}
+        placement="center"
+      >
+        <Dialog.Backdrop bg="blackAlpha.600" />
+        <Dialog.Positioner>
+          <Dialog.Content maxW="640px">
+            <Dialog.Header>
+              <Dialog.Title>Match score breakdown</Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Body py={4}>
+              {matchBreakdownModal.data ? (
+                <>
+                  <HStack mb={4} gap={6} flexDir={{ base: 'column', sm: 'row' }} align="center">
+                    <VStack flexShrink={0} gap={1} align="center">
+                      <ProgressCircle.Root
+                        size="xl"
+                        value={matchBreakdownModal.data.matchPct}
+                        min={0}
+                        max={100}
+                        formatOptions={{ style: 'percent' }}
+                      >
+                        <ProgressCircle.Circle>
+                          <ProgressCircle.Track />
+                          <ProgressCircle.Range
+                            stroke={
+                              matchBreakdownModal.data.matchPct >= 75
+                                ? '#22c55e'
+                                : matchBreakdownModal.data.matchPct >= 45
+                                  ? '#f97316'
+                                  : '#94a3b8'
+                            }
+                          />
+                        </ProgressCircle.Circle>
+                        <AbsoluteCenter>
+                          <ProgressCircle.ValueText />
+                        </AbsoluteCenter>
+                      </ProgressCircle.Root>
+                      <Text fontSize="xs" fontWeight="700" color="gray.600" textTransform="uppercase" letterSpacing="wider">
+                        {matchBreakdownModal.data.matchPct >= 75 ? 'GO' : matchBreakdownModal.data.matchPct >= 45 ? 'PARTNER' : 'NO-GO'}
+                      </Text>
+                    </VStack>
+                    <Text fontSize="sm" color="gray.600" flex="1">
+                      Your overall match for this tender is <strong>{matchBreakdownModal.data.matchPct}%</strong>. Below is how each factor contributes to this score.
+                    </Text>
+                  </HStack>
+                  {matchBreakdownModal.data.matchBreakdownDescriptions?.length > 0 ? (
+                    <SimpleGrid columns={{ base: 1, sm: 2 }} gap={4}>
+                      {matchBreakdownModal.data.matchBreakdownDescriptions.map((item, i) => (
+                        <Box
+                          key={i}
+                          p={3}
+                          borderRadius="md"
+                          borderWidth="1px"
+                          borderColor="gray.200"
+                          bg="gray.50"
+                        >
+                          <HStack justify="space-between" mb={1}>
+                            <Text fontWeight="600" fontSize="sm">
+                              {item.label}
+                            </Text>
+                            <Badge
+                              colorScheme={Number(item.points) >= item.maxPoints ? 'green' : Number(item.points) > 0 ? 'yellow' : 'gray'}
+                            >
+                              {item.points} / {item.maxPoints}
+                            </Badge>
+                          </HStack>
+                          <Text fontSize="xs" color="gray.600" lineHeight="tall">
+                            {item.description}
+                          </Text>
+                        </Box>
+                      ))}
+                    </SimpleGrid>
+                  ) : (
+                    <Text fontSize="sm" color="gray.600">
+                      Detailed breakdown is not available for this tender.
+                    </Text>
+                  )}
+                </>
+              ) : null}
+            </Dialog.Body>
+            <Dialog.Footer>
+              <Button variant="outline" size="sm" onClick={() => setMatchBreakdownModal({ open: false, data: null })}>
+                Close
+              </Button>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Dialog.Root>
+      */}
     </Box>
   )
 }

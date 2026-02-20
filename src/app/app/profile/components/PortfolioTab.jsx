@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useGlobal } from '@/context'
 import { toaster } from '@/elements/toaster'
 import { Button } from '@/elements/button'
 import { IconButton } from '@/elements/icon-button'
@@ -13,29 +14,24 @@ import { SliderField } from '@/elements/slider'
 import { Collapsible } from '@/elements/collapsible'
 import { YearPicker } from '@/elements/year-picker'
 import { Box, Text, Heading, VStack, HStack } from '@chakra-ui/react'
+import { Loading } from '@/elements/loading'
 import { LuBriefcase, LuPlus, LuTrash2, LuSave } from 'react-icons/lu'
 import { BsExclamationCircle } from 'react-icons/bs'
 import { Tooltip } from '@/elements/tooltip'
 import { clientTypes, MAX_PORTFOLIOS, formatValueBand, CONTRACT_VALUE_MIN, CONTRACT_VALUE_MAX, parseContractRange, parseCustomContractRange } from '../variables'
 
 export default function PortfolioTab({ companyId }) {
+  const { cpvs: cpvsRaw } = useGlobal()
   const [portfolios, setPortfolios] = useState([{ title: '', client_type: '', year: '', value_band: 50000, description: '', cpvs: [] }])
   const [openPortfolioIndex, setOpenPortfolioIndex] = useState(0)
-  const [cpvsList, setCpvsList] = useState([])
   const [portfolioErrors, setPortfolioErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  const fetchCpvs = useCallback(async () => {
-    if (!supabase) return
-    try {
-      const { data, error } = await supabase.from('cpvs').select('id, cpv_code, main_cpv_description').order('cpv_code', { ascending: true })
-      if (error) return setCpvsList([])
-      setCpvsList((data || []).map(cpv => ({ id: cpv.id, name: `${cpv.cpv_code} - ${cpv.main_cpv_description || ''}` })))
-    } catch {
-      setCpvsList([])
-    }
-  }, [])
+  const items = useMemo(
+    () => (cpvsRaw || []).map((c) => ({ id: c.id, name: `${c.cpv_code || ''} - ${c.main_cpv_description || ''}`.trim() })),
+    [cpvsRaw]
+  )
 
   const fetchPortfolioData = useCallback(async (id) => {
     if (!supabase || !id) return
@@ -67,11 +63,6 @@ export default function PortfolioTab({ companyId }) {
       setIsLoading(false)
     }
   }, [])
-
-  useEffect(() => {
-    if (!supabase) return
-    fetchCpvs()
-  }, [fetchCpvs])
 
   useEffect(() => {
     if (!supabase || !companyId) return
@@ -197,14 +188,8 @@ export default function PortfolioTab({ companyId }) {
     }
   }
 
-  const items = cpvsList
-
   if (isLoading) {
-    return (
-      <Box p={4}>
-        <Text color="var(--color-dark-gray)">Loading portfolio...</Text>
-      </Box>
-    )
+    return <Loading message="Loading portfolio..." />
   }
 
   return (

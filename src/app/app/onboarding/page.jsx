@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useGlobal } from '@/context'
@@ -47,21 +47,15 @@ const steps = [
 ]
 
 export default function OnboardingPage() {
-  const { user, company, loading: authLoading } = useGlobal()
+  const { user, company, loading: authLoading, certifications, regions, cpvs: cpvsRaw, companyCertifications, setCompanyCertifications } = useGlobal()
   const { getCompany } = useCompany()
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
-  const [certifications, setCertifications] = useState([])
-  const [regions, setRegions] = useState([])
-  const [cpvs, setCpvs] = useState([])
   const [openPortfolioIndex, setOpenPortfolioIndex] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState({})
   const [portfolioErrors, setPortfolioErrors] = useState({})
-  // Separate state for company certifications
-  const [companyCertifications, setCompanyCertifications] = useState([]) // Array of { certification_id, status, notes?, isExisting? }
-  const [profileImg, setProfileImg] = useState('')
   const [formData, setFormData] = useState({
     // Step 1: Company Profile
     region: '',
@@ -94,137 +88,33 @@ export default function OnboardingPage() {
     }
   ])
 
-
   const [dialogOpen, setDialogOpen] = useState(false);
   const [preferredRegions, setPreferredRegions] = useState([]);
   const preferredRegionsRef = useRef(preferredRegions);
   preferredRegionsRef.current = preferredRegions;
 
- 
-
-  // Fetch certifications from Supabase
-  const fetchCertifications = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('certifications')
-        .select('id, code, name, category, description, is_equivalent')
-        .order('category', { ascending: true })
-        .order('name', { ascending: true })
-
-      if (error) {
-        console.error('Error fetching certifications:', error)
-        setCertifications([])
-      } else {
-        // Map to ensure id, name, category, description, and is_equivalent structure
-        const mappedCertifications = (data || []).map(cert => ({
-          id: cert.id,
-          code: cert.code || '',
-          name: cert.name,
-          category: cert.category || 'Other',
-          description: cert.description || '',
-          is_equivalent: cert.is_equivalent || false
-        }))
-        setCertifications(mappedCertifications)
-      }
-    } catch (error) {
-      console.error('Exception fetching certifications:', error)
-      setCertifications([])
-    }
-  }
-
-  // Fetch company certifications from company_certifications table
-  const fetchCompanyCertifications = async (companyId) => {
-    if (!companyId) return
-
-    try {
-      const { data, error } = await supabase
-        .from('company_certifications')
-        .select('id, certification_id, status, notes, document')
-        .eq('company_id', companyId)
-
-      if (error) {
-        console.error('Error fetching company certifications:', error)
-        return []
-      }
-
-      if (data) {
-        const mapped = data.map(certi => ({
-          id: certi.id,
-          certification_id: certi.certification_id,
-          status: certi.status || 'certified',
-          notes: certi.notes || '',
-          document: certi.document ?? '',
-          isExisting: true
-        }))
-        setCompanyCertifications(mapped)
-      }
-    } catch (error) {
-      console.error('Exception fetching company certifications:', error)
-      return []
-    }
-  }
-
-  // Fetch regions from Supabase (id, name only)
-  const fetchRegions = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('regions')
-        .select('id, name')
-        .order('name', { ascending: true })
-
-      if (error) {
-        console.error('Error fetching regions:', error)
-        setRegions([])
-      } else {
-        setRegions((data || []).map((r) => ({ id: r.id, name: r.name })))
-      }
-    } catch (error) {
-      console.error('Exception fetching regions:', error)
-      setRegions([])
-    }
-  }
-
-  // Fetch CPVS from Supabase
-  const fetchCpvs = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('cpvs')
-        .select('id, cpv_code, main_cpv_description')
-        .order('cpv_code', { ascending: true })
-
-      if (error) {
-        console.error('Error fetching CPVS:', error)
-        setCpvs([])
-      } else {
-        // Map cpv_code and main_cpv_description to name
-        const mappedCpvs = (data || []).map(cpv => ({
-          id: cpv.id,
-          name: `${cpv.cpv_code} - ${cpv.main_cpv_description || ''}`
-        }))
-        setCpvs(mappedCpvs)
-      }
-    } catch (error) {
-      console.error('Exception fetching CPVS:', error)
-      setCpvs([])
-    }
-  }
-
+  // CPV items for MultiSelectField (id + name) from global cpvs (id, cpv_code, main_cpv_description)
+  const cpvs = useMemo(
+    () => (cpvsRaw || []).map((cpv) => ({
+      id: cpv.id,
+      name: `${cpv.cpv_code || ''} - ${cpv.main_cpv_description || ''}`.trim()
+    })),
+    [cpvsRaw]
+  )
 
   // Fetch portfolio data from Supabase
   const fetchPortfolioData = async (companyId) => {
     if (!companyId) return
-
     try {
       const { data, error } = await supabase
         .from('portfolio')
         .select('*')
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false })
-
       if (error) {
         console.error('Error fetching portfolio data:', error)
         return
       }
-
       if (data && data.length > 0) {
         const portfoliosWithCpvs = data.map(portfolio => ({
           ...portfolio,
@@ -237,40 +127,6 @@ export default function OnboardingPage() {
       console.error('Exception fetching portfolio data:', error)
     }
   }
-
-  useEffect(() => {
-    if (!supabase) return
-    const loadInitialData = async () => {
-      setIsLoading(true)
-      try {
-        await Promise.all([
-          fetchCertifications(),
-          fetchRegions(),
-          fetchCpvs()
-        ])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    loadInitialData()
-  }, [supabase])
-
- 
-
-
-  // Fetch company data when user is available
-  useEffect(() => {
-    if (user?.company_id) {
-      getCompany(user.company_id)
-      fetchCompanyCertifications(user.company_id)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.company_id])
-
-  // Sync profile_img from user_metadata (set by Uploader on change)
-  useEffect(() => {
-    if (user?.profile_img) setProfileImg(user.profile_img)
-  }, [user?.profile_img])
 
   // Update form data when company data is available from context
   useEffect(() => {
@@ -380,19 +236,6 @@ export default function OnboardingPage() {
           : cert
       )
     )
-  }
-
-  // Profile picture: upload to user_id/profile.png, persist to user_metadata
-  const handleProfileImgChange = async (url) => {
-    setProfileImg(url)
-    if (!supabase) return
-    try {
-      const { error } = await supabase.auth.updateUser({ data: { profile_img: url || null } })
-      if (error) throw error
-    } catch (e) {
-      console.error('Failed to update profile image:', e)
-      toaster.create({ title: 'Failed to save profile picture', type: 'error' })
-    }
   }
 
   // Handle certification document URL (uploader onChange)
@@ -738,11 +581,6 @@ export default function OnboardingPage() {
     setIsSubmitting(true)
 
     try {
-      // Persist profile_img to users table
-      // if (user?.sub) {
-      //   await supabase.from('users').update({ profile_img: profileImg || null }).eq('id', user.sub)
-      // }
-
       // Step 1: Insert portfolio items FIRST
       await savePortfolios(user.company_id)
       // Step 2: Save company certifications
@@ -782,9 +620,26 @@ export default function OnboardingPage() {
         throw new Error('Company update failed - no data returned')
       }
 
-      // Refresh company data
+      // Refresh company data, company certifications, and portfolios in global state
       if (user?.company_id) {
-        await getCompany(user.company_id)
+        await getCompany()
+        const { data: certData } = await supabase
+          .from('company_certifications')
+          .select('id, certification_id, status, notes, document, certifications(name, description, is_equivalent)')
+          .eq('company_id', user.company_id)
+        if (certData) {
+          setCompanyCertifications(certData.map((c) => {
+            const { certifications, certification, ...rest } = c
+            const cert = certifications ?? certification ?? {}
+            return {
+              ...rest,
+              isExisting: true,
+              name: cert.name ?? '',
+              description: cert.description ?? '',
+              is_equivalent: cert.is_equivalent ?? false,
+            }
+          }))
+        }
       }
 
       // Step 3: Show success and redirect
@@ -1106,16 +961,6 @@ export default function OnboardingPage() {
                       </Text>
                       <Box mb="4">
                         <Uploader
-                          label="Profile picture"
-                          entityId={user?.sub}
-                          baseName="profile"
-                          value={profileImg}
-                          onChange={handleProfileImgChange}
-                          accept="image/png,image/jpeg,image/webp"
-                        />
-                      </Box>
-                      <Box mb="4">
-                        <Uploader
                           label="Company logo"
                           entityId={user?.company_id}
                           baseName="logo"
@@ -1423,25 +1268,16 @@ export default function OnboardingPage() {
                                 <Text fontSize="xs" fontWeight="600" mb="2" textTransform="uppercase" letterSpacing="wide" color="#333">
                                   Certification detail
                                 </Text>
-                                {companyCertifications?.map((cert) => {
-                                  const certInfo = certifications.find(c => c.id === cert.certification_id)
-                                  const isEquivalent = certInfo?.is_equivalent || false
-                                  
-                                  return (
+                                {companyCertifications?.map((cert) => (
                                     <Box key={cert.certification_id} p="3" bg="white" borderRadius="md" borderWidth="1px" borderColor="#e5e7eb">
                                       <HStack gap="3" align="flex-start" flexDirection={{ base: "column", md: "row" }}>
                                         <Box flex="1" w={{ base: "full", md: "auto" }}>
                                           <Text fontSize="sm" fontWeight="600" mb="1">
-                                            {certInfo?.name || 'Unknown Certification'}
-                                            {certInfo?.code && (
-                                              <Text as="span" fontSize="xs" color="#666" ml="2" fontWeight="400">
-                                                ({certInfo.code})
-                                              </Text>
-                                            )}
+                                            {cert.name || 'Unknown Certification'}
                                           </Text>
-                                          {certInfo?.description && (
+                                          {cert.description && (
                                             <Text fontSize="xs" color="#666" mb="2">
-                                              {certInfo.description}
+                                              {cert.description}
                                             </Text>
                                           )}
                                         </Box>
@@ -1458,7 +1294,7 @@ export default function OnboardingPage() {
                                           />
                                         </Box>
                                       </HStack>
-                                      {isEquivalent && (
+                                      {cert.is_equivalent && (
                                         <Box mt="2">
                                           <InputField
                                             label="Specify equivalent certification"
@@ -1482,8 +1318,7 @@ export default function OnboardingPage() {
                                         />
                                       </Box>
                                     </Box>
-                                  )
-                                })}
+                                  ))}
                                 <Text fontSize="xs" color="#666" mt="2" fontStyle="italic">
                                   Certification status is self-declared and used for matching and eligibility indication only. Formal proof is provided during tender submission.
                                 </Text>

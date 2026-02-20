@@ -3,7 +3,7 @@
 import { Tabs, Box } from '@chakra-ui/react'
 import * as React from 'react'
 
-export const TabButton = React.forwardRef(function TabButton(props, ref) {
+const TabButtonComponent = React.forwardRef(function TabButton(props, ref) {
   const {
     tabs = [],
     defaultValue,
@@ -65,3 +65,5 @@ export const TabButton = React.forwardRef(function TabButton(props, ref) {
     </Tabs.Root>
   )
 })
+
+export const TabButton = React.memo(TabButtonComponent)

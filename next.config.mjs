@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
   reactStrictMode: false,
   reactCompiler: true,
   images: {
@@ -13,7 +12,8 @@ const nextConfig = {
     ],
   },
   experimental: {
-    optimizePackageImports: ["@chakra-ui/react" , "tailwindcss"],
+    // Tree-shake Chakra (and Tailwind) so only imported components end up in the bundle when deployed
+    optimizePackageImports: ["@chakra-ui/react", "tailwindcss"],
   },
 };
 

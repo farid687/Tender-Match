@@ -8,11 +8,7 @@ import { Loading } from "@/elements/loading";
 const SIGN_IN_PATH = "/auth/sign-in";
 const APP_PROFILE_PATH = "/app/profile";
 
-/**
- * Handles route protection: shows loading/redirecting UI and redirects
- * unauthenticated users to sign-in. Renders children only when allowed.
- * Root "/" always redirects: logged in → /app/profile, not logged in → /auth/sign-in.
- */
+
 export function AuthRouteGuard({ user, loading, children }) {
   const router = useRouter();
   const pathname = usePathname();

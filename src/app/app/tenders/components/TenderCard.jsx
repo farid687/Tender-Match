@@ -31,7 +31,6 @@ import {
   getDeadlineColor,
   getContractNatureKey,
   CONTRACT_NATURE_ICON_COLOR,
-  getStatusBadgeBg,
 } from '../variables'
 
 const CONTRACT_NATURE_ICONS = {
@@ -40,12 +39,23 @@ const CONTRACT_NATURE_ICONS = {
   supplies: LuBox,
 }
 
+/** 5 colors for procedure_label; pick by (label.length % 5) so any label gets a consistent color */
+const PROCEDURE_LABEL_COLORS = [
+  '#2563eb', // blue
+  '#059669', // emerald
+  '#7c3aed', // violet
+  '#dc2626', // red
+  '#ea580c', // orange
+]
+
 const TenderCard = ({
   t,
   cpvDisplay: cpvDisplayProp = null,
   isBookmarked = false,
   onSaveClick,
   saveDisabled = false,
+  matchResult = null,
+  onMatchBreakdownClick = null,
 }) => {
   const cpvDisplay = cpvDisplayProp ?? t?.cpv_main ?? '—'
   const budgetLabel =
@@ -56,14 +66,33 @@ const TenderCard = ({
   const regionTooltip = regionLabel === 'EU' ? 'European procedure' : 'National procedure'
   const closesInText = getClosesInText(t?.closing_date ?? '') ?? 'NVT'
   const deadlineColor = t?.closing_date ? getDeadlineColor(t.closing_date) : 'var(--color-dark-gray)'
-  const matchPct = getMatchPercentage(t?.tender_id)
+  const matchPct = matchResult != null && typeof matchResult.overallPercentage === 'number'
+    ? matchResult.overallPercentage
+    : getMatchPercentage(t?.tender_id)
+  const recommendation =
+    matchResult?.recommendation ??
+    (matchPct >= 75 ? 'GO' : matchPct >= 45 ? 'PARTNER' : 'NO-GO')
+  const matchBreakdownText =
+    matchResult?.breakdown &&
+    [
+      `CPV: ${matchResult.breakdown.cpv?.points ?? '—'}/100`,
+      `Region: ${matchResult.breakdown.region?.points ?? '—'}/100`,
+      `Contract type: ${matchResult.breakdown.contractType?.points ?? '—'}/100`,
+      `Contract value: ${matchResult.breakdown.contractValue?.points ?? '—'}/100`,
+      `Certification: ${matchResult.breakdown.certification?.points ?? '—'}/100`,
+      `Portfolio: ${matchResult.breakdown.portfolio?.points ?? '—'}/100`,
+    ].join(' · ')
   const contractNatureKey = getContractNatureKey(t?.contract_nature)
   const ContractNatureIcon = CONTRACT_NATURE_ICONS[contractNatureKey] ?? LuBriefcase
 
   const detailHref = t?.tender_id ? `/app/tenders/${t.tender_id}` : null
-  const statusLabel = t?.tender_status ? String(t.tender_status).toUpperCase() : '—'
-  const statusBadgeBg = getStatusBadgeBg(t?.tender_status)
+  // const statusLabel = t?.tender_status ? String(t.tender_status).toUpperCase() : '—'
+  // const statusBadgeBg = getStatusBadgeBg(t?.tender_status)
   const tendernedUrl = t?.tenderned_url ?? null
+  const procedureLabelColor =
+    t?.procedure_label != null
+      ? PROCEDURE_LABEL_COLORS[String(t.procedure_label).length % PROCEDURE_LABEL_COLORS.length]
+      : PROCEDURE_LABEL_COLORS[0]
 
  
 
@@ -71,6 +100,47 @@ const TenderCard = ({
     e?.stopPropagation()
     onSaveClick?.()
   }
+
+  const matchBreakdownDescriptions = matchResult?.breakdown
+    ? [
+        {
+          label: 'CPV (sector)',
+          maxPoints: 40,
+          points: matchResult.breakdown.cpv?.points ?? '—',
+          description: 'How well the tender’s main sector (CPV code) aligns with your company profile and the types of work you do.',
+        },
+        {
+          label: 'Region',
+          maxPoints: 15,
+          points: matchResult.breakdown.region?.points ?? '—',
+          description: 'Whether the tender’s geographic scope matches your preferred regions and where you can deliver.',
+        },
+        {
+          label: 'Contract type',
+          maxPoints: 10,
+          points: matchResult.breakdown.contractType?.points ?? '—',
+          description: 'How well the contract nature (works, services, or supplies) fits your capabilities.',
+        },
+        {
+          label: 'Contract value',
+          maxPoints: 15,
+          points: matchResult.breakdown.contractValue?.points ?? '—',
+          description: 'Whether the estimated value is in a range that matches your company size and experience.',
+        },
+        {
+          label: 'Certification',
+          maxPoints: 10,
+          points: matchResult.breakdown.certification?.points ?? '—',
+          description: 'How your certifications and qualifications compare to what the tender requires.',
+        },
+        {
+          label: 'Portfolio',
+          maxPoints: 10,
+          points: matchResult.breakdown.portfolio?.points ?? '—',
+          description: 'How relevant your past projects and experience are to this tender.',
+        },
+      ]
+    : []
 
   return (
     <Box
@@ -88,11 +158,11 @@ const TenderCard = ({
         borderColor: 'var(--color-primary)',
       }}
     >
-      {/* Top header: reduced height; procedure, status, deadline, budget, region, dates */}
+      {/* Top header: full-height bar; procedure pill and items stretch to fill */}
       <HStack
         align="stretch"
-        minH="36px"
-        py={1.5}
+        minH="44px"
+        py={0}
         bg="var(--color-very-light-gray)"
         borderBottomWidth="1px"
         borderBottomColor="var(--color-gray)"
@@ -102,14 +172,13 @@ const TenderCard = ({
           <HStack
             align="center"
             px={3}
-            py={1.5}
             gap={1.5}
             fontWeight="700"
             fontSize="xs"
             textTransform="uppercase"
             letterSpacing="wider"
             color="white"
-            bg="var(--color-secondary)"
+            bg={procedureLabelColor}
             border="none"
             borderRadius="8px 30px 30px 0px"
             flexShrink={0}
@@ -118,6 +187,7 @@ const TenderCard = ({
             <Text as="span">{t.procedure_label}</Text>
           </HStack>
         )}
+        {/* Tender status — commented out
         <Badge
           alignSelf="center"
           gap={1}
@@ -137,8 +207,9 @@ const TenderCard = ({
           <LuTarget size={12} />
           <Text as="span">{statusLabel}</Text>
         </Badge>
+        */}
 
-        <HStack gap={1.5} px={3} py={1.5} flexShrink={0} color={deadlineColor}>
+        <HStack gap={1.5} px={3} py={1.5} ml={t?.procedure_label ? 3 : 0} flexShrink={0} color={deadlineColor}>
           <LuClock size={14} style={{ color: deadlineColor }} />
           <Text fontSize="xs" fontWeight="600" color={deadlineColor}>
             {closesInText}
@@ -166,14 +237,14 @@ const TenderCard = ({
           {t?.publication_datetime && (
             <HStack gap={1}>
               <LuCalendar size={12} style={{ color: 'var(--color-primary)' }} />
-              <Text fontWeight="600" color="var(--color-dark-gray)">Pub:</Text>
+              <Text fontWeight="600" color="var(--color-dark-gray)">Published Date:</Text>
               <Text fontWeight="700" color="var(--color-black)">{formatTenderDate(t.publication_datetime)}</Text>
             </HStack>
           )}
           {t?.closing_date && (
             <HStack gap={1}>
               <LuClock size={12} style={{ color: 'var(--color-primary)' }} />
-              <Text fontWeight="600" color="var(--color-dark-gray)">Due:</Text>
+              <Text fontWeight="600" color="var(--color-dark-gray)">Due Date:</Text>
               <Text fontWeight="700" color="var(--color-black)">{formatTenderDate(t.closing_date)}</Text>
             </HStack>
           )}
@@ -321,20 +392,27 @@ const TenderCard = ({
           </HStack>
         </VStack>
 
-        {/* Right: match gauge — SVG with gradient on stroke */}
-        <Box
-          position="relative"
+        {/* Right: match gauge — SVG with gradient; below it, recommendation button */}
+        <VStack
           flex="0 0 136px"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
+          align="center"
+          justify="center"
           py={4}
           pr={4}
+          spacing={3}
           sx={{
             background: 'linear-gradient(135deg, rgba(0,0,0,0.03) 0%, transparent 50%)',
           }}
         >
-          <Box position="relative" w="104px" h="104px">
+          <Tooltip content={matchBreakdownText || 'View match breakdown'}>
+          <Box
+            position="relative"
+            w="104px"
+            h="104px"
+            flexShrink={0}
+            cursor="help"
+            _hover={matchBreakdownText ? { opacity: 0.9 } : undefined}
+          >
             <svg
               width="104"
               height="104"
@@ -342,7 +420,6 @@ const TenderCard = ({
               style={{ transform: 'rotate(-90deg)' }}
             >
               <defs>
-                {/* 80–100%: green gradient (120deg) */}
                 <linearGradient
                   id={`matchGradHigh-${t?.tender_id ?? 0}`}
                   gradientUnits="objectBoundingBox"
@@ -355,7 +432,6 @@ const TenderCard = ({
                   <stop offset="0%" stopColor="#d4fc79" />
                   <stop offset="100%" stopColor="#96e6a1" />
                 </linearGradient>
-                {/* &lt;80%: warm gradient (120deg) */}
                 <linearGradient
                   id={`matchGradLow-${t?.tender_id ?? 0}`}
                   gradientUnits="objectBoundingBox"
@@ -402,7 +478,22 @@ const TenderCard = ({
               <Text fontSize="xs" fontWeight="700" color="var(--color-dark-gray)" textTransform="uppercase" letterSpacing="wider">Match</Text>
             </Box>
           </Box>
-        </Box>
+          </Tooltip>
+          <Button
+            size="sm"
+            variant="solid"
+            colorScheme={recommendation === 'GO' ? 'green' : recommendation === 'PARTNER' ? 'orange' : 'gray'}
+            fontWeight="700"
+            letterSpacing="wider"
+            textTransform="uppercase"
+            fontSize="xs"
+            minW="72px"
+          pointerEvents="cursor"
+         
+          >
+            {recommendation}
+          </Button>
+        </VStack>
       </HStack>
     </Box>
   )

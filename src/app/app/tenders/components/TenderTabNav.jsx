@@ -1,5 +1,6 @@
 'use client'
 
+import { startTransition, useEffect } from 'react'
 import { useSelectedLayoutSegment, useRouter } from 'next/navigation'
 import { Box } from '@chakra-ui/react'
 import { TabButton } from '@/elements/tab-button'
@@ -19,6 +20,14 @@ export default function TenderTabNav({ tenderId }) {
   const basePath = `/app/tenders/${tenderId}`
   const activeValue = TAB_ROUTES.some((t) => t.value === segment) ? segment : 'ai-summary'
 
+  useEffect(() => {
+    if (!tenderId) return
+    const base = `/app/tenders/${tenderId}`
+    TAB_ROUTES.forEach((tab) => {
+      router.prefetch(`${base}/${tab.value}`)
+    })
+  }, [tenderId, router])
+
   const tabs = TAB_ROUTES.map((tab) => ({
     value: tab.value,
     label: tab.label,
@@ -26,19 +35,18 @@ export default function TenderTabNav({ tenderId }) {
   }))
 
   const handleValueChange = (details) => {
-    router.push(`${basePath}/${details.value}`)
+    startTransition(() => {
+      router.push(`${basePath}/${details.value}`)
+    })
   }
 
   return (
-   
-      <TabButton
-        variant="enclosed"
-        size="md"
-        tabs={tabs}
-        value={activeValue}
-        onValueChange={handleValueChange}
-      />
-  
-
+    <TabButton
+      variant="enclosed"
+      size="md"
+      tabs={tabs}
+      value={activeValue}
+      onValueChange={handleValueChange}
+    />
   )
 }
